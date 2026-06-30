@@ -1,0 +1,6 @@
+{
+  "name": "Logística y Firma Digital",
+  "description": "Sistema de asignación de choferes, horarios de recolección y reparto con registro de bultos y firmas digitales.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
