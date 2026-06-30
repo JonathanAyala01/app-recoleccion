@@ -18,8 +18,24 @@ const originalSetItem = typeof Storage !== 'undefined' ? Storage.prototype.setIt
 const originalRemoveItem = typeof Storage !== 'undefined' ? Storage.prototype.removeItem : undefined;
 const originalClear = typeof Storage !== 'undefined' ? Storage.prototype.clear : undefined;
 
+const hasAnyData = (state: AppData): boolean =>
+  state.agencies.length > 0 ||
+  state.drivers.length > 0 ||
+  state.routeSheets.length > 0 ||
+  state.zones.length > 0;
+
 const writeSnapshotToLocalStorage = (state: AppData): void => {
   if (!canUseLocalStorage() || !originalSetItem) {
+    return;
+  }
+
+  if (!hasAnyData(state)) {
+    if (originalRemoveItem) {
+      originalRemoveItem.call(localStorage, STORAGE_KEYS.agencies);
+      originalRemoveItem.call(localStorage, STORAGE_KEYS.drivers);
+      originalRemoveItem.call(localStorage, STORAGE_KEYS.routeSheets);
+      originalRemoveItem.call(localStorage, STORAGE_KEYS.zones);
+    }
     return;
   }
 
@@ -77,6 +93,9 @@ export const bootstrapStorageBridge = async (): Promise<void> => {
   }
 
   writeSnapshotToLocalStorage(currentSnapshot);
+  if (hasAnyData(currentSnapshot)) {
+    scheduleRemoteSave();
+  }
 
   Storage.prototype.setItem = function patchedSetItem(key: string, value: string) {
     originalSetItem.call(this, key, value);
