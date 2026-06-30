@@ -8,10 +8,42 @@ export const INITIAL_ZONES: Zone[] = [
 ];
 
 export const INITIAL_DRIVERS: Driver[] = [
-  { id: 'drv-1', name: 'Carlos Gómez', legajo: 'L-5421', internalUnit: 'U-108', licensePlate: 'AF-321-JK' },
-  { id: 'drv-2', name: 'Juan Manuel Rodríguez', legajo: 'L-2918', internalUnit: 'U-214', licensePlate: 'AE-892-LL' },
-  { id: 'drv-3', name: 'Mariano Silva', legajo: 'L-7740', internalUnit: 'U-305', licensePlate: 'AG-404-ZX' },
-  { id: 'drv-4', name: 'Eduardo Martínez', legajo: 'L-1105', internalUnit: 'U-112', licensePlate: 'AD-556-PO' }
+  {
+    id: 'drv-1',
+    name: 'Carlos Gómez',
+    username: 'carlos.gomez',
+    password: '1234',
+    legajo: 'L-5421',
+    internalUnit: 'U-108',
+    licensePlate: 'AF-321-JK'
+  },
+  {
+    id: 'drv-2',
+    name: 'Juan Manuel Rodríguez',
+    username: 'juan.rodriguez',
+    password: '1234',
+    legajo: 'L-2918',
+    internalUnit: 'U-214',
+    licensePlate: 'AE-892-LL'
+  },
+  {
+    id: 'drv-3',
+    name: 'Mariano Silva',
+    username: 'mariano.silva',
+    password: '1234',
+    legajo: 'L-7740',
+    internalUnit: 'U-305',
+    licensePlate: 'AG-404-ZX'
+  },
+  {
+    id: 'drv-4',
+    name: 'Eduardo Martínez',
+    username: 'eduardo.martinez',
+    password: '1234',
+    legajo: 'L-1105',
+    internalUnit: 'U-112',
+    licensePlate: 'AD-556-PO'
+  }
 ];
 
 export const INITIAL_AGENCIES: Agency[] = [

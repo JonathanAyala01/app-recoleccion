@@ -4,58 +4,60 @@
 
 export interface Agency {
   id: string;
-  code: string;       // e.g. "2593"
-  name: string;       // e.g. "Pque. Chacabuco - Roma Cargas"
-  address: string;    // e.g. "Pumacahua 1690"
-  zoneId: string;     // e.g. "zona-sur"
+  code: string;
+  name: string;
+  address: string;
+  zoneId: string;
 }
 
 export interface Zone {
   id: string;
-  name: string;       // e.g. "Zona Sur", "Zona Norte"
-  color: string;      // Tailwind class color for visual identification
+  name: string;
+  color: string;
 }
 
 export interface Driver {
   id: string;
-  name: string;       // e.g. "Carlos Gómez"
-  legajo: string;     // e.g. "L-4820"
-  internalUnit: string; // e.g. "U-104"
-  licensePlate: string; // e.g. "AF-123-XY"
+  name: string;
+  username: string;
+  password: string;
+  legajo: string;
+  internalUnit: string;
+  licensePlate: string;
 }
 
 export interface RouteStop {
   id: string;
   agencyId: string;
   sequence: number;
-  scheduledTime: string;      // e.g. "09:30"
-  packagesToDeliver: number;  // Bultos p/entrega
-  packagesToCollect: number;  // Bultos Recol.
+  scheduledTime: string;
+  packagesToDeliver: number;
+  packagesToCollect: number;
   actualPackagesDelivered?: number;
   actualPackagesCollected?: number;
-  stopTime?: string;          // HH:MM
+  stopTime?: string;
   observations?: string;
-  recipientName?: string;     // Persona que recibe
-  recipientSignature?: string; // Data URL of drawn signature
+  recipientName?: string;
+  recipientSignature?: string;
   status: 'pending' | 'completed' | 'skipped';
 }
 
 export interface RouteSheet {
   id: string;
-  date: string;               // YYYY-MM-DD
-  driverId: string;           // Ref to Driver
-  driverName: string;         // Copy for easy history
+  date: string;
+  driverId: string;
+  driverName: string;
   legajo: string;
   internalUnit: string;
   licensePlate: string;
   initialKm: number;
   finalKm?: number;
-  departureTime?: string;     // HH:MM
-  returnTime?: string;        // HH:MM
+  departureTime?: string;
+  returnTime?: string;
   stops: RouteStop[];
   status: 'draft' | 'assigned' | 'loading' | 'en_route' | 'completed';
-  driverLoadSignature?: string; // Data URL of driver loading signature
-  driverReturnSignature?: string; // Data URL of driver return signature
+  driverLoadSignature?: string;
+  driverReturnSignature?: string;
   observations?: string;
   createdAt: string;
 }

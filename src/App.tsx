@@ -17,6 +17,32 @@ const STORAGE_KEYS = {
 const canUseLocalStorage = (): boolean =>
   typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 
+type PortalView = 'both' | 'admin' | 'chofer';
+
+const readPortalView = (): PortalView => {
+  if (typeof window === 'undefined') return 'both';
+
+  const view = new URLSearchParams(window.location.search).get('view');
+  if (view === 'admin' || view === 'chofer' || view === 'driver') {
+    return view === 'driver' ? 'chofer' : view;
+  }
+
+  const legacy = new URLSearchParams(window.location.search).get('portal');
+  if (legacy === 'admin' || legacy === 'chofer' || legacy === 'driver') {
+    return legacy === 'driver' ? 'chofer' : legacy;
+  }
+
+  return 'both';
+};
+
+const buildPortalLink = (view: Exclude<PortalView, 'both'>): string => {
+  if (typeof window === 'undefined') return `?view=${view}`;
+
+  const url = new URL(window.location.href);
+  url.searchParams.set('view', view);
+  return url.toString();
+};
+
 const parseCollection = <T,>(key: string): T[] => {
   if (!canUseLocalStorage()) return [];
 
@@ -69,13 +95,16 @@ const writeStateToStorage = (state: {
 
 export default function App() {
   const [initialState] = useState(() => readStoredState());
+  const portalView = readPortalView();
 
   const [agencies, setAgencies] = useState<Agency[]>(initialState.agencies);
   const [drivers, setDrivers] = useState<Driver[]>(initialState.drivers);
   const [routeSheets, setRouteSheets] = useState<RouteSheet[]>(initialState.routeSheets);
   const [zones, setZones] = useState<Zone[]>(initialState.zones);
   const [selectedRouteForModal, setSelectedRouteForModal] = useState<RouteSheet | null>(null);
-  const [mobileActiveView, setMobileActiveView] = useState<'admin' | 'driver'>('admin');
+  const [mobileActiveView, setMobileActiveView] = useState<'admin' | 'driver'>(
+    portalView === 'chofer' ? 'driver' : 'admin'
+  );
 
   useEffect(() => {
     if (!hasStoredData()) {
@@ -213,6 +242,21 @@ export default function App() {
     writeStateToStorage(seedState);
   };
 
+  if (portalView === 'chofer') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-900">
+        <div className="min-h-screen w-full p-4 md:p-6">
+          <DriverPanel
+            drivers={drivers}
+            routeSheets={routeSheets}
+            agencies={agencies}
+            onUpdateRouteSheet={handleUpdateRouteSheet}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 antialiased pb-12">
       <header className="sticky top-0 z-40 bg-slate-950 text-white shadow-lg">
@@ -228,24 +272,41 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex rounded-lg border border-slate-800 bg-slate-900 p-0.5 sm:hidden">
-              <button
-                onClick={() => setMobileActiveView('admin')}
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  mobileActiveView === 'admin' ? 'bg-indigo-600 text-white' : 'text-slate-400'
-                }`}
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href={buildPortalLink('admin')}
+                className="inline-flex items-center rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
               >
-                Admin
-              </button>
-              <button
-                onClick={() => setMobileActiveView('driver')}
-                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  mobileActiveView === 'driver' ? 'bg-indigo-600 text-white' : 'text-slate-400'
-                }`}
+                Link Admin
+              </a>
+              <a
+                href={buildPortalLink('chofer')}
+                className="inline-flex items-center rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
               >
-                Chofer
-              </button>
+                Link Chofer
+              </a>
             </div>
+
+            {portalView === 'both' && (
+              <div className="flex rounded-lg border border-slate-800 bg-slate-900 p-0.5 sm:hidden">
+                <button
+                  onClick={() => setMobileActiveView('admin')}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    mobileActiveView === 'admin' ? 'bg-indigo-600 text-white' : 'text-slate-400'
+                  }`}
+                >
+                  Admin
+                </button>
+                <button
+                  onClick={() => setMobileActiveView('driver')}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    mobileActiveView === 'driver' ? 'bg-indigo-600 text-white' : 'text-slate-400'
+                  }`}
+                >
+                  Chofer
+                </button>
+              </div>
+            )}
 
             <button
               onClick={resetToDefault}
@@ -265,7 +326,9 @@ export default function App() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
           <section
-            className={`space-y-6 lg:col-span-8 ${mobileActiveView === 'admin' ? 'block' : 'hidden sm:block'}`}
+            className={`space-y-6 ${
+              portalView === 'both' ? 'lg:col-span-8' : 'lg:col-span-12'
+            } ${portalView === 'both' && mobileActiveView === 'admin' ? 'block' : portalView === 'both' ? 'hidden sm:block' : 'block'}`}
           >
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
               <div className="mb-4 flex items-center gap-2">
@@ -296,9 +359,9 @@ export default function App() {
           </section>
 
           <aside
-            className={`flex flex-col items-center justify-start space-y-6 lg:col-span-4 ${
-              mobileActiveView === 'driver' ? 'block' : 'hidden sm:block'
-            }`}
+            className={`flex flex-col items-center justify-start space-y-6 ${
+              portalView === 'both' ? 'lg:col-span-4' : 'lg:col-span-12'
+            } ${portalView === 'both' && mobileActiveView === 'driver' ? 'block' : portalView === 'both' ? 'hidden sm:block' : 'block'}`}
           >
             <div className="w-full max-w-sm">
               <DriverPanel

@@ -18,6 +18,65 @@ export const createEmptyAppData = (): AppData => ({
   zones: [],
 });
 
+export const slugifyUsername = (value: string): string =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '.')
+    .replace(/^\.+|\.+$/g, '')
+    .replace(/\.{2,}/g, '.');
+
+export const createDriverUsername = (name: string, legajo?: string): string => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const first = parts[0] ?? 'chofer';
+  const last = parts.length > 1 ? parts[parts.length - 1] : (legajo || 'usuario');
+  return slugifyUsername(`${first}.${last}`);
+};
+
+export const generateDriverPassword = (): string =>
+  Math.random().toString(36).slice(2, 10);
+
+export const ensureUniqueDriverUsername = (
+  name: string,
+  existingUsernames: string[],
+  legajo?: string,
+  currentUsername?: string
+): string => {
+  const base = createDriverUsername(name, legajo);
+  const normalizedCurrent = currentUsername?.toLowerCase();
+  const taken = new Set(existingUsernames.map((item) => item.toLowerCase()));
+
+  if (normalizedCurrent && normalizedCurrent === base) {
+    return base;
+  }
+
+  if (!taken.has(base)) {
+    return base;
+  }
+
+  let suffix = 2;
+  let candidate = `${base}.${suffix}`;
+  while (taken.has(candidate)) {
+    suffix += 1;
+    candidate = `${base}.${suffix}`;
+  }
+
+  return candidate;
+};
+
+const normalizeDriver = (driver: Partial<Driver>, existingUsernames: string[] = []): Driver => ({
+  id: driver.id || `drv-${Date.now()}`,
+  name: driver.name || 'Sin nombre',
+  username: driver.username && driver.username.trim().length > 0
+    ? ensureUniqueDriverUsername(driver.name || 'Sin nombre', existingUsernames, driver.legajo, driver.username)
+    : ensureUniqueDriverUsername(driver.name || 'Sin nombre', existingUsernames, driver.legajo),
+  password: driver.password && driver.password.trim().length > 0 ? driver.password : generateDriverPassword(),
+  legajo: driver.legajo || '',
+  internalUnit: driver.internalUnit || '',
+  licensePlate: driver.licensePlate || '',
+});
+
 export const createSeedRouteSheets = (): RouteSheet[] => [
   {
     id: 'HR-4089',
@@ -116,12 +175,29 @@ export const createSeedRouteSheets = (): RouteSheet[] => [
   },
 ];
 
-export const createSeedAppData = (): AppData => ({
-  agencies: INITIAL_AGENCIES,
-  drivers: INITIAL_DRIVERS,
-  routeSheets: createSeedRouteSheets(),
-  zones: INITIAL_ZONES,
-});
+export const createSeedAppData = (): AppData => {
+  const drivers = INITIAL_DRIVERS.map((driver, index) =>
+    normalizeDriver(
+      driver,
+      INITIAL_DRIVERS.slice(0, index).map((item) => item.username)
+    )
+  );
+
+  return {
+    agencies: INITIAL_AGENCIES,
+    drivers,
+    routeSheets: createSeedRouteSheets(),
+    zones: INITIAL_ZONES,
+  };
+};
+
+export const normalizeDrivers = (drivers: Partial<Driver>[]): Driver[] =>
+  drivers.map((driver, index) =>
+    normalizeDriver(
+      driver,
+      drivers.slice(0, index).map((item) => item.username || createDriverUsername(item.name || '', item.legajo))
+    )
+  );
 
 export const hasAnyAppData = (data: AppData): boolean =>
   data.agencies.length > 0 ||
@@ -129,9 +205,16 @@ export const hasAnyAppData = (data: AppData): boolean =>
   data.routeSheets.length > 0 ||
   data.zones.length > 0;
 
-export const normalizeAppData = (input: Partial<AppData> | null | undefined): AppData => ({
-  agencies: Array.isArray(input?.agencies) ? input.agencies : [],
-  drivers: Array.isArray(input?.drivers) ? input.drivers : [],
-  routeSheets: Array.isArray(input?.routeSheets) ? input.routeSheets : [],
-  zones: Array.isArray(input?.zones) ? input.zones : [],
-});
+export const normalizeAppData = (input: Partial<AppData> | null | undefined): AppData => {
+  const agencies = Array.isArray(input?.agencies) ? input.agencies : [];
+  const zones = Array.isArray(input?.zones) ? input.zones : [];
+  const routeSheets = Array.isArray(input?.routeSheets) ? input.routeSheets : [];
+  const drivers = Array.isArray(input?.drivers) ? normalizeDrivers(input.drivers) : [];
+
+  return {
+    agencies,
+    drivers,
+    routeSheets,
+    zones,
+  };
+};

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { 
   Plus, Search, MapPin, Truck, Calendar, User, ArrowUp, ArrowDown, Trash2, 
   Layers, Check, ClipboardList, Info, Sparkles, Filter, Pencil, X
 } from 'lucide-react';
 import { Agency, Zone, Driver, RouteSheet, RouteStop } from '../types';
+import { createDriverUsername, ensureUniqueDriverUsername, generateDriverPassword } from '../lib/appData';
 
 interface AdminPanelProps {
   agencies: Agency[];
@@ -76,6 +77,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newDriverLegajo, setNewDriverLegajo] = useState('');
   const [newDriverUnit, setNewDriverUnit] = useState('');
   const [newDriverPlate, setNewDriverPlate] = useState('');
+  const [newDriverPassword, setNewDriverPassword] = useState('');
 
   // Quick form for editing an existing driver
   const [editingDriverId, setEditingDriverId] = useState<string | null>(null);
@@ -83,6 +85,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [editDriverLegajo, setEditDriverLegajo] = useState('');
   const [editDriverUnit, setEditDriverUnit] = useState('');
   const [editDriverPlate, setEditDriverPlate] = useState('');
+  const [editDriverPassword, setEditDriverPassword] = useState('');
 
   // Handle editing click pre-fill
   const handleStartEditDriver = (driver: Driver) => {
@@ -91,6 +94,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setEditDriverLegajo(driver.legajo);
     setEditDriverUnit(driver.internalUnit);
     setEditDriverPlate(driver.licensePlate);
+    setEditDriverPassword(driver.password);
     // Also close the add form if open
     setIsAddingDriver(false);
   };
@@ -99,10 +103,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleSaveEditDriver = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingDriverId || !editDriverName || !editDriverLegajo || !editDriverUnit || !editDriverPlate) return;
+    const username = ensureUniqueDriverUsername(
+      editDriverName,
+      drivers.filter((driver) => driver.id !== editingDriverId).map((driver) => driver.username),
+      editDriverLegajo
+    );
 
     const updatedDriver: Driver = {
       id: editingDriverId,
       name: editDriverName,
+      username,
+      password: editDriverPassword || generateDriverPassword(),
       legajo: editDriverLegajo,
       internalUnit: editDriverUnit,
       licensePlate: editDriverPlate
@@ -116,6 +127,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setEditDriverLegajo('');
     setEditDriverUnit('');
     setEditDriverPlate('');
+    setEditDriverPassword('');
   };
 
   // Quick form for adding/editing zones
@@ -131,10 +143,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const COLOR_PRESETS = [
     { value: 'indigo', label: 'Indigo / Azul', bg: 'bg-indigo-500', text: 'text-indigo-600' },
     { value: 'emerald', label: 'Esmeralda / Verde', bg: 'bg-emerald-500', text: 'text-emerald-600' },
-    { value: 'amber', label: 'Ámbar / Naranja', bg: 'bg-amber-500', text: 'text-amber-600' },
+    { value: 'amber', label: 'Ãmbar / Naranja', bg: 'bg-amber-500', text: 'text-amber-600' },
     { value: 'rose', label: 'Rosa / Rojo', bg: 'bg-rose-500', text: 'text-rose-600' },
     { value: 'sky', label: 'Cielo / Celeste', bg: 'bg-sky-500', text: 'text-sky-600' },
-    { value: 'violet', label: 'Violeta / Púrpura', bg: 'bg-violet-500', text: 'text-violet-600' },
+    { value: 'violet', label: 'Violeta / PÃºrpura', bg: 'bg-violet-500', text: 'text-violet-600' },
     { value: 'orange', label: 'Naranja Vivo', bg: 'bg-orange-500', text: 'text-orange-600' },
     { value: 'slate', label: 'Pizarra / Gris', bg: 'bg-slate-500', text: 'text-slate-600' },
   ];
@@ -206,7 +218,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     // Check if agency is already in current stops
     if (builderStops.some(s => s.agencyId === newStopAgencyId)) {
-      alert("Esta agencia ya está agregada en el itinerario de esta hoja de ruta.");
+      alert("Esta agencia ya estÃ¡ agregada en el itinerario de esta hoja de ruta.");
       return;
     }
 
@@ -331,10 +343,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleCreateDriver = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDriverName || !newDriverLegajo || !newDriverUnit || !newDriverPlate) return;
+    const username = ensureUniqueDriverUsername(
+      newDriverName,
+      drivers.map((driver) => driver.username),
+      newDriverLegajo
+    );
 
     const newDriver: Driver = {
       id: `drv-${Date.now()}`,
       name: newDriverName,
+      username,
+      password: newDriverPassword || generateDriverPassword(),
       legajo: newDriverLegajo,
       internalUnit: newDriverUnit,
       licensePlate: newDriverPlate
@@ -347,6 +366,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setNewDriverLegajo('');
     setNewDriverUnit('');
     setNewDriverPlate('');
+    setNewDriverPassword('');
     setIsAddingDriver(false);
   };
 
@@ -361,6 +381,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const filteredDrivers = drivers.filter(driver => 
     driver.name.toLowerCase().includes(searchDriverQuery.toLowerCase()) || 
+    driver.username.toLowerCase().includes(searchDriverQuery.toLowerCase()) ||
     driver.legajo.toLowerCase().includes(searchDriverQuery.toLowerCase()) ||
     driver.internalUnit.toLowerCase().includes(searchDriverQuery.toLowerCase())
   );
@@ -443,7 +464,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
         {activeTab === 'drivers' && (
           <button
-            onClick={() => setIsAddingDriver(true)}
+            onClick={() => {
+              setNewDriverPassword(generateDriverPassword());
+              setIsAddingDriver(true);
+            }}
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2.5 rounded-lg shadow-sm hover:shadow transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -472,7 +496,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="bg-indigo-50 border-b border-indigo-100 px-6 py-4 flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-indigo-600" />
-                  <h3 className="text-sm font-bold text-slate-950">Planificador de Hoja de Ruta Logística</h3>
+                  <h3 className="text-sm font-bold text-slate-950">Planificador de Hoja de Ruta LogÃ­stica</h3>
                 </div>
                 <button
                   onClick={() => setIsCreatingRoute(false)}
@@ -496,9 +520,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     >
                       <option value="">-- Seleccionar Chofer --</option>
                       {drivers.map(d => (
-                        <option key={d.id} value={d.id}>
-                          {d.name} ({d.legajo} | {d.internalUnit})
-                        </option>
+                      <option key={d.id} value={d.id}>
+                          {d.name} (@{d.username} | {d.legajo} | {d.internalUnit})
+                      </option>
                       ))}
                     </select>
                   </div>
@@ -517,7 +541,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                   <div className="flex flex-col">
                     <label className="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-                      <Truck className="w-3.5 h-3.5 text-slate-400" /> Km Inicial (Odómetro)
+                      <Truck className="w-3.5 h-3.5 text-slate-400" /> Km Inicial (OdÃ³metro)
                     </label>
                     <input
                       type="number"
@@ -528,14 +552,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 </div>
 
-                {/* ⚡ Carga Masiva por Zona */}
+                {/* âš¡ Carga Masiva por Zona */}
                 <div className="border border-indigo-100 bg-indigo-50/40 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex-1">
                     <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5 uppercase tracking-wide">
-                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Carga Rápida Completa por Zona
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Carga RÃ¡pida Completa por Zona
                     </span>
                     <p className="text-[10px] text-indigo-700 mt-0.5 leading-relaxed">
-                      Seleccione una zona para agregar de forma automática todas sus agencias asociadas como paradas de esta hoja de ruta.
+                      Seleccione una zona para agregar de forma automÃ¡tica todas sus agencias asociadas como paradas de esta hoja de ruta.
                     </p>
                   </div>
                   <div>
@@ -555,7 +579,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         const agenciesToAdd = zoneAgencies.filter(a => !existingAgencyIds.has(a.id));
 
                         if (agenciesToAdd.length === 0) {
-                          alert("Todas las agencias de esta zona ya están en la hoja de ruta.");
+                          alert("Todas las agencias de esta zona ya estÃ¡n en la hoja de ruta.");
                           e.target.value = '';
                           return;
                         }
@@ -622,7 +646,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           const zone = getZone(a.zoneId);
                           return (
                             <option key={a.id} value={a.id}>
-                              ({a.code}) {a.name} — {zone?.name || 'Sin Zona'}
+                              ({a.code}) {a.name} â€” {zone?.name || 'Sin Zona'}
                             </option>
                           );
                         })}
@@ -682,7 +706,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                   {builderStops.length === 0 ? (
                     <div className="border border-dashed border-slate-200 rounded-xl p-8 text-center text-slate-400 text-xs">
-                      Ninguna agencia agregada a la hoja de ruta todavía. Use el panel de arriba para armar el recorrido.
+                      Ninguna agencia agregada a la hoja de ruta todavÃ­a. Use el panel de arriba para armar el recorrido.
                     </div>
                   ) : (
                     <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white">
@@ -691,7 +715,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-[11px] font-semibold">
                             <th className="p-3 w-12 text-center">Orden</th>
                             <th className="p-3">Agencia</th>
-                            <th className="p-3">Dirección</th>
+                            <th className="p-3">DirecciÃ³n</th>
                             <th className="p-3 text-center w-24">Hora Est.</th>
                             <th className="p-3 text-center w-28">Bultos p/Entrega</th>
                             <th className="p-3 text-center w-28">Bultos Recol.</th>
@@ -821,7 +845,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               {routeSheets.length === 0 ? (
                 <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 text-sm shadow-xs">
                   <ClipboardList className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                  No hay hojas de ruta cargadas todavía. Haga clic en <strong className="text-slate-700">"Crear Hoja de Ruta"</strong> para iniciar.
+                  No hay hojas de ruta cargadas todavÃ­a. Haga clic en <strong className="text-slate-700">"Crear Hoja de Ruta"</strong> para iniciar.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -865,7 +889,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               Km Inicial: <strong className="text-slate-700">{route.initialKm}</strong>
                             </div>
                             <div className="text-slate-500 flex items-center gap-1">
-                              Km Final: <strong className="text-slate-700">{route.finalKm || '—'}</strong>
+                              Km Final: <strong className="text-slate-700">{route.finalKm || 'â€”'}</strong>
                             </div>
                           </div>
 
@@ -877,7 +901,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <div className="flex justify-between">
                               <span className="text-slate-500">Total Bultos Previstos:</span>
                               <span className="font-semibold text-slate-800">
-                                {totalDeliver} Entrega | {totalCollect} Recolección
+                                {totalDeliver} Entrega | {totalCollect} RecolecciÃ³n
                               </span>
                             </div>
                           </div>
@@ -920,7 +944,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Buscar agencia por código, nombre o dirección..."
+                placeholder="Buscar agencia por cÃ³digo, nombre o direcciÃ³n..."
                 value={searchAgencyQuery}
                 onChange={(e) => setSearchAgencyQuery(e.target.value)}
                 className="pl-9 pr-4 py-2 w-full text-xs border border-slate-200 rounded-lg focus:outline-indigo-500 text-slate-800"
@@ -943,14 +967,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
 
           {/* ADD AGENCY DIALOG (MODAL-LIKE INLINE) */}
-          {isAddingAgency && (
+                    {isAddingAgency && (
             <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-5 animate-in slide-in-from-top duration-150">
               <h3 className="text-xs font-bold text-indigo-950 uppercase tracking-wider mb-4 flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Cargar Nueva Agencia en Base
               </h3>
               <form onSubmit={handleCreateAgency} className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Código Único (e.g. 2593)</label>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">CÃ³digo Ãšnico (e.g. 2593)</label>
                   <input
                     type="text"
                     required
@@ -961,7 +985,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Nombre / Identificación</label>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Nombre / IdentificaciÃ³n</label>
                   <input
                     type="text"
                     required
@@ -972,7 +996,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Dirección Completa</label>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">DirecciÃ³n Completa</label>
                   <input
                     type="text"
                     required
@@ -1018,9 +1042,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs font-semibold">
-                  <th className="py-3 px-4 w-20 font-mono">Código</th>
+                  <th className="py-3 px-4 w-20 font-mono">CÃ³digo</th>
                   <th className="py-3 px-4">Nombre de la Agencia</th>
-                  <th className="py-3 px-4">Dirección</th>
+                  <th className="py-3 px-4">DirecciÃ³n</th>
                   <th className="py-3 px-4 w-52">Zona Asignada</th>
                 </tr>
               </thead>
@@ -1058,7 +1082,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </table>
             {filteredAgencies.length === 0 && (
               <div className="p-8 text-center text-slate-400 text-xs">
-                No se encontraron agencias que coincidan con la búsqueda.
+                No se encontraron agencias que coincidan con la bÃºsqueda.
               </div>
             )}
           </div>
@@ -1097,9 +1121,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     required
                     value={newDriverName}
                     onChange={(e) => setNewDriverName(e.target.value)}
-                    placeholder="Esteban González"
+                    placeholder="Esteban GonzÃ¡lez"
                     className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-indigo-500 text-slate-800"
                   />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Usuario Ãºnico</label>
+                  <div className="text-xs border border-dashed border-slate-200 rounded-lg p-2 bg-slate-50 text-slate-700 font-mono">
+                    @{createDriverUsername(newDriverName || 'nombre', newDriverLegajo || 'legajo')}
+                  </div>
                 </div>
                 <div className="flex flex-col">
                   <label className="text-[10px] font-semibold text-slate-600 mb-1">Legajo (ID de Empleado)</label>
@@ -1113,7 +1143,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">N° de Interno (Camión/Vehículo)</label>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">ContraseÃ±a</label>
+                  <input
+                    type="text"
+                    required
+                    value={newDriverPassword}
+                    onChange={(e) => setNewDriverPassword(e.target.value)}
+                    placeholder="1234 o clave segura"
+                    className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-indigo-500 text-slate-800 font-mono"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">NÂ° de Interno (CamiÃ³n/VehÃ­culo)</label>
                   <input
                     type="text"
                     required
@@ -1124,7 +1165,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Patente / Matrícula</label>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Patente / MatrÃ­cula</label>
                   <input
                     type="text"
                     required
@@ -1137,7 +1178,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <div className="sm:col-span-4 flex justify-end gap-2 mt-2">
                   <button
                     type="button"
-                    onClick={() => setIsAddingDriver(false)}
+                    onClick={() => {
+                      setIsAddingDriver(false);
+                      setNewDriverPassword('');
+                    }}
                     className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-white rounded-lg transition-colors border border-transparent"
                   >
                     Cancelar
@@ -1162,7 +1206,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </h3>
                 <button
                   type="button"
-                  onClick={() => setEditingDriverId(null)}
+                  onClick={() => {
+                    setEditingDriverId(null);
+                    setEditDriverPassword('');
+                  }}
                   className="text-slate-400 hover:text-slate-600"
                 >
                   <X className="w-4 h-4" />
@@ -1176,9 +1223,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     required
                     value={editDriverName}
                     onChange={(e) => setEditDriverName(e.target.value)}
-                    placeholder="Esteban González"
+                    placeholder="Esteban GonzÃ¡lez"
                     className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-amber-500 text-slate-800"
                   />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Usuario Ãºnico</label>
+                  <div className="text-xs border border-dashed border-slate-200 rounded-lg p-2 bg-slate-50 text-slate-700 font-mono">
+                    @{ensureUniqueDriverUsername(
+                      editDriverName || 'nombre',
+                      drivers.filter((driver) => driver.id !== editingDriverId).map((driver) => driver.username),
+                      editDriverLegajo || 'legajo'
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-col">
                   <label className="text-[10px] font-semibold text-slate-600 mb-1">Legajo (ID de Empleado)</label>
@@ -1192,7 +1249,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">N° de Interno (Camión/Vehículo)</label>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">ContraseÃ±a</label>
+                  <input
+                    type="text"
+                    required
+                    value={editDriverPassword}
+                    onChange={(e) => setEditDriverPassword(e.target.value)}
+                    placeholder="Clave asignada"
+                    className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-amber-500 text-slate-800 font-mono"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">NÂ° de Interno (CamiÃ³n/VehÃ­culo)</label>
                   <input
                     type="text"
                     required
@@ -1203,7 +1271,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Patente / Matrícula</label>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Patente / MatrÃ­cula</label>
                   <input
                     type="text"
                     required
@@ -1216,7 +1284,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <div className="sm:col-span-4 flex justify-end gap-2 mt-2">
                   <button
                     type="button"
-                    onClick={() => setEditingDriverId(null)}
+                    onClick={() => {
+                      setEditingDriverId(null);
+                      setEditDriverPassword('');
+                    }}
                     className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-white rounded-lg transition-colors border border-transparent"
                   >
                     Cancelar
@@ -1245,6 +1316,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                   <div>
                     <h4 className="text-sm font-bold text-slate-900">{driver.name}</h4>
+                    <div className="text-xs text-slate-500 font-mono mt-0.5">
+                      @{driver.username}
+                    </div>
                     <div className="text-xs text-slate-500 font-mono mt-0.5">
                       Legajo: <strong className="text-slate-700">{driver.legajo}</strong>
                     </div>
@@ -1282,7 +1356,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             ))}
             {filteredDrivers.length === 0 && (
               <div className="col-span-2 p-8 text-center text-slate-400 text-xs">
-                No se encontraron choferes registrados con esa descripción.
+                No se encontraron choferes registrados con esa descripciÃ³n.
               </div>
             )}
           </div>
@@ -1505,3 +1579,4 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     </div>
   );
 };
+
