@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Agency, Zone, Driver, RouteSheet } from './types';
 import { INITIAL_AGENCIES, INITIAL_DRIVERS, INITIAL_ZONES } from './seedData';
+import { createSeedAppData } from './lib/appData';
 import { DashboardStats } from './components/DashboardStats';
 import { AdminPanel } from './components/AdminPanel';
 import { DriverPanel } from './components/DriverPanel';
@@ -266,14 +267,18 @@ export default function App() {
 
   const resetToDefault = () => {
     if (confirm("¿Desea restaurar los datos iniciales de fábrica? Se perderán las firmas y hojas de ruta creadas.")) {
-      localStorage.removeItem('logistics_agencies');
-      localStorage.removeItem('logistics_drivers');
-      localStorage.removeItem('logistics_routes');
-      
-      setAgencies(INITIAL_AGENCIES);
-      setDrivers(INITIAL_DRIVERS);
-      setRouteSheets([]);
-      window.location.reload();
+      const seedState = createSeedAppData();
+
+      setAgencies(seedState.agencies);
+      setDrivers(seedState.drivers);
+      setRouteSheets(seedState.routeSheets);
+      setZones(seedState.zones);
+      setSelectedRouteForModal(null);
+
+      localStorage.setItem('logistics_agencies', JSON.stringify(seedState.agencies));
+      localStorage.setItem('logistics_drivers', JSON.stringify(seedState.drivers));
+      localStorage.setItem('logistics_routes', JSON.stringify(seedState.routeSheets));
+      localStorage.setItem('logistics_zones', JSON.stringify(seedState.zones));
     }
   };
 
