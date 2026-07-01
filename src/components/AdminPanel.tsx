@@ -62,7 +62,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newStopAgencyId, setNewStopAgencyId] = useState('');
   const [newStopScheduledTime, setNewStopScheduledTime] = useState('08:00');
   const [newStopDeliver, setNewStopDeliver] = useState(0);
-  const [newStopCollect, setNewStopCollect] = useState(0);
 
   // Quick form for adding a new agency
   const [isAddingAgency, setIsAddingAgency] = useState(false);
@@ -227,16 +226,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       sequence: builderStops.length + 1,
       scheduledTime: newStopScheduledTime,
       packagesToDeliver: Number(newStopDeliver),
-      packagesToCollect: Number(newStopCollect),
+      packagesToCollect: 0, // La recolección la registra el chofer en la agencia, no se planifica
       status: 'pending'
     };
 
     setBuilderStops([...builderStops, newStop]);
-    
+
     // Reset individual stop inputs
     setNewStopAgencyId('');
     setNewStopDeliver(0);
-    setNewStopCollect(0);
     
     // Auto increment hour by 30 mins for convenience
     const [h, m] = newStopScheduledTime.split(':').map(Number);
@@ -389,6 +387,43 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const filteredZones = zones.filter(zone =>
     zone.name.toLowerCase().includes(searchZoneQuery.toLowerCase())
   );
+
+  const getRouteStatusStyle = (status: RouteSheet['status']) => {
+    switch (status) {
+      case 'completed':
+        return {
+          card: 'border-emerald-200 bg-gradient-to-br from-white to-emerald-50/40 shadow-emerald-100/40',
+          accent: 'bg-emerald-500',
+          badge: 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200/70',
+          label: 'Completado',
+          chip: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        };
+      case 'en_route':
+        return {
+          card: 'border-indigo-200 bg-gradient-to-br from-white to-indigo-50/40 shadow-indigo-100/40',
+          accent: 'bg-indigo-500',
+          badge: 'bg-indigo-100 text-indigo-800 ring-1 ring-indigo-200/70',
+          label: 'En viaje',
+          chip: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+        };
+      case 'loading':
+        return {
+          card: 'border-amber-200 bg-gradient-to-br from-white to-amber-50/40 shadow-amber-100/40',
+          accent: 'bg-amber-500',
+          badge: 'bg-amber-100 text-amber-800 ring-1 ring-amber-200/70',
+          label: 'Cargando',
+          chip: 'bg-amber-50 text-amber-700 border-amber-200',
+        };
+      default:
+        return {
+          card: 'border-slate-200 bg-gradient-to-br from-white to-slate-50/55 shadow-slate-100/40',
+          accent: 'bg-slate-400',
+          badge: 'bg-slate-100 text-slate-700 ring-1 ring-slate-200/70',
+          label: 'Asignado',
+          chip: 'bg-slate-50 text-slate-600 border-slate-200',
+        };
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -664,24 +699,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       />
                     </div>
 
-                    <div className="sm:col-span-2 flex flex-col">
+                    <div className="sm:col-span-4 flex flex-col">
                       <label className="text-[11px] font-semibold text-slate-600 mb-1">Bultos a Entregar</label>
                       <input
                         type="number"
                         min="0"
                         value={newStopDeliver}
                         onChange={(e) => setNewStopDeliver(Number(e.target.value))}
-                        className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-indigo-500 text-slate-800 font-mono"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2 flex flex-col">
-                      <label className="text-[11px] font-semibold text-slate-600 mb-1">Bultos a Recolectar</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={newStopCollect}
-                        onChange={(e) => setNewStopCollect(Number(e.target.value))}
                         className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-indigo-500 text-slate-800 font-mono"
                       />
                     </div>
@@ -718,7 +742,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <th className="p-3">DirecciÃ³n</th>
                             <th className="p-3 text-center w-24">Hora Est.</th>
                             <th className="p-3 text-center w-28">Bultos p/Entrega</th>
-                            <th className="p-3 text-center w-28">Bultos Recol.</th>
                             <th className="p-3 text-center w-28">Acciones</th>
                           </tr>
                         </thead>
@@ -757,19 +780,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                     onChange={(e) => {
                                       const updated = [...builderStops];
                                       updated[idx].packagesToDeliver = Number(e.target.value);
-                                      setBuilderStops(updated);
-                                    }}
-                                    className="text-xs border border-slate-200 rounded p-1 bg-white focus:outline-indigo-500 text-slate-800 font-mono w-16 text-center"
-                                  />
-                                </td>
-                                <td className="p-3 text-center">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={stop.packagesToCollect}
-                                    onChange={(e) => {
-                                      const updated = [...builderStops];
-                                      updated[idx].packagesToCollect = Number(e.target.value);
                                       setBuilderStops(updated);
                                     }}
                                     className="text-xs border border-slate-200 rounded p-1 bg-white focus:outline-indigo-500 text-slate-800 font-mono w-16 text-center"
@@ -850,67 +860,61 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {routeSheets.map(route => {
-                    const totalDeliver = route.stops.reduce((sum, s) => sum + s.packagesToDeliver, 0);
-                    const totalCollect = route.stops.reduce((sum, s) => sum + s.packagesToCollect, 0);
+                    const totalActualDelivered = route.stops.reduce((sum, s) => sum + (s.actualPackagesDelivered ?? 0), 0);
+                    const totalActualCollected = route.stops.reduce((sum, s) => sum + (s.actualPackagesCollected ?? 0), 0);
                     const completedStops = route.stops.filter(s => s.status !== 'pending').length;
+                    const routeStyle = getRouteStatusStyle(route.status);
                     
                     return (
                       <div 
                         key={route.id}
-                        className="bg-white border border-slate-250 hover:border-slate-300 rounded-2xl p-5 shadow-xs hover:shadow-sm transition-all flex flex-col justify-between"
+                        className={`relative overflow-hidden rounded-3xl border p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg flex flex-col justify-between ${routeStyle.card}`}
                       >
+                        <div className={`absolute inset-x-0 top-0 h-1.5 ${routeStyle.accent}`} />
                         <div>
                           <div className="flex justify-between items-start mb-3">
                             <div>
                               <span className="text-xs font-semibold text-slate-500 font-mono">{route.id}</span>
-                              <h4 className="text-sm font-bold text-slate-900 mt-0.5">{route.driverName}</h4>
+                              <h4 className="text-sm font-bold text-slate-950 mt-0.5">{route.driverName}</h4>
                             </div>
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              route.status === 'completed' ? 'bg-emerald-100 text-emerald-800' :
-                              route.status === 'en_route' ? 'bg-indigo-150 text-indigo-900' :
-                              route.status === 'loading' ? 'bg-amber-100 text-amber-800' :
-                              'bg-slate-100 text-slate-700'
-                            }`}>
-                              {route.status === 'completed' ? 'Completado' :
-                               route.status === 'en_route' ? 'En viaje' :
-                               route.status === 'loading' ? 'Cargando' :
-                               'Asignado'}
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${routeStyle.badge}`}>
+                              {routeStyle.label}
                             </span>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-mono border-t border-b border-slate-100 py-3 mb-4 bg-slate-50/55 rounded-lg px-3">
+                          <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-mono border border-white/70 py-3 mb-4 bg-white/80 rounded-2xl px-3 backdrop-blur-sm shadow-inner">
                             <div className="text-slate-500 flex items-center gap-1">
-                              Fecha: <strong className="text-slate-700">{route.date}</strong>
+                              Fecha: <strong className="text-slate-900">{route.date}</strong>
                             </div>
                             <div className="text-slate-500 flex items-center gap-1">
-                              Interno: <strong className="text-slate-700">{route.internalUnit}</strong>
+                              Interno: <strong className="text-slate-900">{route.internalUnit}</strong>
                             </div>
                             <div className="text-slate-500 flex items-center gap-1">
-                              Km Inicial: <strong className="text-slate-700">{route.initialKm}</strong>
+                              Km Inicial: <strong className="text-slate-900">{route.initialKm}</strong>
                             </div>
                             <div className="text-slate-500 flex items-center gap-1">
-                              Km Final: <strong className="text-slate-700">{route.finalKm || 'â€”'}</strong>
+                              Km Final: <strong className="text-slate-900">{route.finalKm || 'â€”'}</strong>
                             </div>
                           </div>
 
                           <div className="text-xs space-y-1.5 mb-4">
-                            <div className="flex justify-between">
+                            <div className="flex justify-between items-center gap-3">
                               <span className="text-slate-500">Paradas/Agencias:</span>
-                              <span className="font-semibold text-slate-800">{completedStops} / {route.stops.length} completadas</span>
+                              <span className="font-semibold text-slate-900">{completedStops} / {route.stops.length} completadas</span>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-slate-500">Total Bultos Previstos:</span>
-                              <span className="font-semibold text-slate-800">
-                                {totalDeliver} Entrega | {totalCollect} RecolecciÃ³n
+                            <div className="flex justify-between items-center gap-3">
+                              <span className="text-slate-500">Bultos reales:</span>
+                              <span className="font-semibold text-slate-900">
+                                {totalActualDelivered} entregados | {totalActualCollected} recolectados
                               </span>
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex justify-between items-center gap-2 border-t border-slate-100 pt-3.5 mt-auto">
+                        <div className="flex justify-between items-center gap-2 border-t border-white/80 pt-3.5 mt-auto">
                           <button
                             onClick={() => onDeleteRouteSheet(route.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-rose-100"
                             title="Eliminar hoja de ruta"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -918,7 +922,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                           <button
                             onClick={() => onViewRouteDetails(route)}
-                            className="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs px-4 py-2 rounded-lg transition-colors cursor-pointer"
+                            className={`font-semibold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer text-white shadow-sm ${route.status === 'completed' ? 'bg-emerald-600 hover:bg-emerald-700' : route.status === 'en_route' ? 'bg-indigo-600 hover:bg-indigo-700' : route.status === 'loading' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-slate-900 hover:bg-slate-800'}`}
                           >
                             Ver Hoja Digital (Firmas)
                           </button>

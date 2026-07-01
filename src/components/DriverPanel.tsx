@@ -36,6 +36,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
   // Form states for stop completion
   const [stopActualDelivered, setStopActualDelivered] = useState<number>(0);
   const [stopActualCollected, setStopActualCollected] = useState<number>(0);
+  const [stopDeliveredAll, setStopDeliveredAll] = useState<boolean>(true);
   const [stopRecipientName, setStopRecipientName] = useState('');
   const [stopObservations, setStopObservations] = useState('');
   const [stopSignature, setStopSignature] = useState<string | null>(null);
@@ -63,10 +64,13 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
   const handleSelectDriver = (id: string) => {
     setSelectedDriverId(id);
     setLoginError('');
-    // Find if driver has an unfinished route en route, loading, or assigned, and auto select it
-    const active = routeSheets.find(r => r.driverId === id && r.status !== 'completed');
-    if (active) {
-      setActiveRouteId(active.id);
+    // Retomar automáticamente solo rutas ya en curso (carga o viaje).
+    // Las rutas 'assigned' deben mostrarse en la lista para poder "Comenzar Carga".
+    const inProgress = routeSheets.find(
+      r => r.driverId === id && (r.status === 'loading' || r.status === 'en_route')
+    );
+    if (inProgress) {
+      setActiveRouteId(inProgress.id);
     } else {
       setActiveRouteId(null);
     }
@@ -144,7 +148,8 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
   const handleOpenStop = (stop: RouteStop) => {
     setSelectedStopId(stop.id);
     setStopActualDelivered(stop.packagesToDeliver); // Pre-fill with scheduled for quick tap
-    setStopActualCollected(stop.packagesToCollect); // Pre-fill with scheduled for quick tap
+    setStopActualCollected(0); // La recolección se registra al llegar a la agencia
+    setStopDeliveredAll(true); // Por defecto asume entrega completa; el chofer la ajusta si fue parcial
     setStopRecipientName('');
     setStopObservations('');
     setStopSignature(null);
@@ -161,15 +166,8 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
   const handleSubmitStopDelivery = () => {
     if (!activeRoute || !selectedStopId || !selectedStop) return;
 
-    if (!stopRecipientName.trim()) {
-      alert("Por favor ingrese el nombre del receptor en destino.");
-      return;
-    }
-
-    if (!stopSignature) {
-      alert("Se requiere la firma del receptor para confirmar la entrega.");
-      return;
-    }
+    // El nombre del receptor y la firma son opcionales: el registro principal
+    // es la confirmación de entrega y recolección de bultos por parada.
 
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -181,9 +179,11 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
           status: 'completed' as const,
           actualPackagesDelivered: Number(stopActualDelivered),
           actualPackagesCollected: Number(stopActualCollected),
-          recipientName: stopRecipientName,
+          allPackagesDelivered: s.packagesToDeliver === 0 ? true : stopDeliveredAll,
+          hadCollection: Number(stopActualCollected) > 0,
+          recipientName: stopRecipientName.trim() || undefined,
           observations: stopObservations,
-          recipientSignature: stopSignature,
+          recipientSignature: stopSignature || undefined,
           stopTime: timeStr
         };
       }
@@ -359,35 +359,64 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
               </div>
             ) : (
               <div className="space-y-3">
-                {driverRoutes.map(route => (
-                  <div 
-                    key={route.id}
-                    className="bg-slate-850 border border-slate-800 rounded-2xl p-4 space-y-3 flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-mono font-semibold text-slate-400">{route.id}</span>
-                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/25 text-indigo-400 uppercase tracking-wider">
-                          Asignado
-                        </span>
-                      </div>
-                      <div className="text-[11px] font-semibold text-slate-300 font-mono">
-                        Fecha: {route.date} | KM Inicial: {route.initialKm}
-                      </div>
-                      <div className="text-xs text-slate-400 mt-2">
-                        Paradas: <strong className="text-slate-200">{route.stops.length} agencias</strong> en el recorrido.
-                      </div>
-                    </div>
+                {driverRoutes.map(route => {
+                  const isInProgress = route.status === 'loading' || route.status === 'en_route';
+                  const isCompleted = route.status === 'completed';
+                  const statusLabel =
+                    route.status === 'completed' ? 'Completado' :
+                    route.status === 'en_route' ? 'En viaje' :
+                    route.status === 'loading' ? 'Cargando' :
+                    'Asignado';
+                  const statusClasses =
+                    route.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400' :
+                    isInProgress ? 'bg-amber-500/20 text-amber-400' :
+                    'bg-indigo-500/25 text-indigo-400';
 
-                    <button
-                      onClick={() => handleStartLoading(route)}
-                      className="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                  return (
+                    <div
+                      key={route.id}
+                      className="bg-slate-850 border border-slate-800 rounded-2xl p-4 space-y-3 flex flex-col justify-between"
                     >
-                      Comenzar Carga
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-mono font-semibold text-slate-400">{route.id}</span>
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${statusClasses}`}>
+                            {statusLabel}
+                          </span>
+                        </div>
+                        <div className="text-[11px] font-semibold text-slate-300 font-mono">
+                          Fecha: {route.date} | KM Inicial: {route.initialKm}
+                        </div>
+                        <div className="text-xs text-slate-400 mt-2">
+                          Paradas: <strong className="text-slate-200">{route.stops.length} agencias</strong> en el recorrido.
+                        </div>
+                      </div>
+
+                      {isCompleted ? (
+                        <div className="w-full mt-2 bg-slate-800 text-slate-400 font-semibold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 border border-slate-700/50">
+                          <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                          Ruta finalizada
+                        </div>
+                      ) : isInProgress ? (
+                        <button
+                          onClick={() => setActiveRouteId(route.id)}
+                          className="w-full mt-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                        >
+                          Continuar Ruta
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleStartLoading(route)}
+                          className="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                        >
+                          Comenzar Carga
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -433,7 +462,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
                           </div>
                           <div className="flex gap-2 text-[10px] font-mono text-slate-400 bg-slate-900 px-2 py-1 rounded-md">
                             <span>E: <strong className="text-white">{stop.packagesToDeliver}</strong></span>
-                            <span>R: <strong className="text-white">{stop.packagesToCollect}</strong></span>
+                            <span className="text-slate-500">R se carga en agencia</span>
                           </div>
                         </div>
                       );
@@ -494,34 +523,88 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
                         <p className="text-xs text-slate-400 mt-1">{getAgency(selectedStop.agencyId)?.address}</p>
                       </div>
 
-                      {/* Package registration sliders or number counters */}
-                      <div className="grid grid-cols-2 gap-3.5 pt-1">
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-semibold text-slate-400 block">Bultos Entregados</label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              min="0"
-                              value={stopActualDelivered}
-                              onChange={(e) => setStopActualDelivered(Number(e.target.value))}
-                              className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs font-mono text-center font-bold text-white focus:outline-indigo-500"
-                            />
-                            <span className="text-[10px] text-slate-500">/{selectedStop.packagesToDeliver}</span>
+                      {/* ENTREGA DE BULTOS */}
+                      {selectedStop.packagesToDeliver > 0 && (
+                        <div className="space-y-2 pt-1">
+                          <div className="flex items-center justify-between px-0.5">
+                            <label className="text-[10px] font-semibold text-slate-400">Bultos a Distribuir</label>
+                            <span className="text-[10px] text-slate-500 font-mono">Previsto: {selectedStop.packagesToDeliver}</span>
                           </div>
-                        </div>
 
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-semibold text-slate-400 block">Bultos Recolectados</label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              min="0"
-                              value={stopActualCollected}
-                              onChange={(e) => setStopActualCollected(Number(e.target.value))}
-                              className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs font-mono text-center font-bold text-white focus:outline-indigo-500"
-                            />
-                            <span className="text-[10px] text-slate-500">/{selectedStop.packagesToCollect}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = !stopDeliveredAll;
+                              setStopDeliveredAll(next);
+                              if (next) setStopActualDelivered(selectedStop.packagesToDeliver);
+                            }}
+                            className={`w-full flex items-center justify-between gap-2 rounded-xl border p-3 text-left transition-colors ${
+                              stopDeliveredAll
+                                ? 'bg-emerald-950/30 border-emerald-800/50'
+                                : 'bg-amber-950/20 border-amber-800/50'
+                            }`}
+                          >
+                            <span className="text-xs font-semibold text-slate-100">
+                              {stopDeliveredAll ? 'Dejé todos los bultos' : 'Entrega parcial de bultos'}
+                            </span>
+                            <span
+                              className={`flex h-5 w-5 items-center justify-center rounded-md border ${
+                                stopDeliveredAll
+                                  ? 'bg-emerald-500 border-emerald-500 text-white'
+                                  : 'bg-slate-800 border-slate-600 text-transparent'
+                              }`}
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </span>
+                          </button>
+
+                          {!stopDeliveredAll && (
+                            <div className="space-y-1.5 rounded-xl border border-amber-800/40 bg-amber-950/10 p-3">
+                              <label className="text-[10px] font-semibold text-amber-300 block">Cantidad realmente entregada</label>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={selectedStop.packagesToDeliver}
+                                  value={stopActualDelivered}
+                                  onChange={(e) => {
+                                    const value = Number(e.target.value);
+                                    setStopActualDelivered(value);
+                                    if (value >= selectedStop.packagesToDeliver) setStopDeliveredAll(true);
+                                  }}
+                                  className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs font-mono text-center font-bold text-white focus:outline-indigo-500"
+                                />
+                                <span className="text-[10px] text-slate-500">/{selectedStop.packagesToDeliver}</span>
+                              </div>
+                              <p className="text-[10px] text-amber-400/90">
+                                Registró {stopActualDelivered} de {selectedStop.packagesToDeliver} bultos. Detalle el motivo en observaciones.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* RECOLECCIÓN DE CARGA */}
+                      <div className="space-y-2">
+                        <div className="space-y-1.5 rounded-xl border border-indigo-800/40 bg-indigo-950/20 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <label className="text-[10px] font-semibold text-indigo-300">
+                              Bultos recolectados al llegar a la agencia
+                            </label>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              Se completa en destino
+                            </span>
                           </div>
+                          <input
+                            type="number"
+                            min="0"
+                            value={stopActualCollected}
+                            onChange={(e) => setStopActualCollected(Number(e.target.value))}
+                            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs font-mono text-center font-bold text-white focus:outline-indigo-500"
+                          />
+                          <p className="text-[10px] text-slate-400">
+                            Ingrese la cantidad real cuando el chofer llegue a la agencia. Si no hubo retiro, deje 0.
+                          </p>
                         </div>
                       </div>
 
@@ -539,7 +622,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
 
                       {/* Recipient details */}
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold text-slate-400 block">Nombre del Receptor</label>
+                        <label className="text-[10px] font-semibold text-slate-400 block">Nombre del Receptor (opcional)</label>
                         <input
                           type="text"
                           value={stopRecipientName}
@@ -554,7 +637,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
                     <div className="bg-white text-slate-950 rounded-2xl p-4 border border-slate-200 shadow-lg">
                       <span className="text-xs font-bold text-slate-700 block mb-2 flex items-center gap-1.5">
                         <Signature className="w-4 h-4 text-indigo-500" />
-                        Firma Digital del Receptor
+                        Firma Digital del Receptor (opcional)
                       </span>
                       
                       {!stopSignature ? (
@@ -596,7 +679,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
                         className="flex-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-1 cursor-pointer"
                       >
                         <Check className="w-4 h-4" />
-                        Registrar Entrega
+                        Confirmar Parada
                       </button>
                     </div>
                   </div>
@@ -656,9 +739,22 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
                                 <Clock className="w-3 h-3 text-indigo-400" />
                                 {stop.scheduledTime}
                               </div>
-                              <span className="text-[9px] font-semibold text-slate-500 font-mono block mt-1">
-                                {stop.packagesToDeliver}E | {stop.packagesToCollect}R
-                              </span>
+                              {stop.status === 'completed' ? (
+                                <>
+                                  <span className="text-[9px] font-semibold text-slate-400 font-mono block mt-1">
+                                    {stop.actualPackagesDelivered ?? 0}E | {stop.actualPackagesCollected ?? 0}R
+                                  </span>
+                                  {stop.packagesToDeliver > 0 && !stop.allPackagesDelivered && (
+                                    <span className="text-[8px] font-bold text-amber-400 uppercase tracking-wide block mt-0.5">
+                                      Entrega parcial
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-[9px] font-semibold text-slate-500 font-mono block mt-1">
+                                  {stop.packagesToDeliver}E | R en agencia
+                                </span>
+                              )}
                             </div>
                           </button>
                         );
@@ -737,4 +833,3 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
     </div>
   );
 };
-

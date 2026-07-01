@@ -19,8 +19,6 @@ export const RouteDetailsModal: React.FC<RouteDetailsModalProps> = ({
     return agencies.find(a => a.id === agencyId);
   };
 
-  const totalToDeliver = route.stops.reduce((sum, s) => sum + s.packagesToDeliver, 0);
-  const totalToCollect = route.stops.reduce((sum, s) => sum + s.packagesToCollect, 0);
   const totalActualDelivered = route.stops.reduce((sum, s) => sum + (s.actualPackagesDelivered ?? 0), 0);
   const totalActualCollected = route.stops.reduce((sum, s) => sum + (s.actualPackagesCollected ?? 0), 0);
 
@@ -131,8 +129,8 @@ export const RouteDetailsModal: React.FC<RouteDetailsModalProps> = ({
                     <th className="py-3 px-4 w-12 text-center">N°</th>
                     <th className="py-3 px-4">Agencia / Dirección</th>
                     <th className="py-3 px-3 text-center w-24">Hora Est.</th>
-                    <th className="py-3 px-3 text-center w-24 bg-slate-150/40">Bultos Entr. (Prev/Real)</th>
-                    <th className="py-3 px-3 text-center w-24 bg-slate-150/40">Bultos Recol. (Prev/Real)</th>
+                    <th className="py-3 px-3 text-center w-24 bg-slate-150/40">Bultos Entregados</th>
+                    <th className="py-3 px-3 text-center w-24 bg-slate-150/40">Bultos Recolectados</th>
                     <th className="py-3 px-4">Estado / Firma Receptor</th>
                   </tr>
                 </thead>
@@ -168,27 +166,15 @@ export const RouteDetailsModal: React.FC<RouteDetailsModalProps> = ({
                           {stop.scheduledTime} hs
                         </td>
                         <td className="py-3 px-3 text-center font-mono bg-slate-50/50">
-                          <span className="text-slate-500">{stop.packagesToDeliver}</span>
-                          <span className="text-slate-400 mx-1">/</span>
                           <span className={`font-semibold ${
-                            stop.actualPackagesDelivered !== undefined 
-                              ? stop.actualPackagesDelivered === stop.packagesToDeliver
-                                ? 'text-emerald-600'
-                                : 'text-amber-600'
-                              : 'text-slate-300'
+                            stop.actualPackagesDelivered !== undefined ? 'text-emerald-600' : 'text-slate-300'
                           }`}>
                             {stop.actualPackagesDelivered !== undefined ? stop.actualPackagesDelivered : '—'}
                           </span>
                         </td>
                         <td className="py-3 px-3 text-center font-mono bg-slate-50/50">
-                          <span className="text-slate-500">{stop.packagesToCollect}</span>
-                          <span className="text-slate-400 mx-1">/</span>
                           <span className={`font-semibold ${
-                            stop.actualPackagesCollected !== undefined
-                              ? stop.actualPackagesCollected === stop.packagesToCollect
-                                ? 'text-emerald-600'
-                                : 'text-amber-600'
-                              : 'text-slate-300'
+                            stop.actualPackagesCollected !== undefined ? 'text-indigo-600' : 'text-slate-300'
                           }`}>
                             {stop.actualPackagesCollected !== undefined ? stop.actualPackagesCollected : '—'}
                           </span>
@@ -246,14 +232,10 @@ export const RouteDetailsModal: React.FC<RouteDetailsModalProps> = ({
               <span className="font-semibold text-slate-700">Resumen de Totales:</span>
               <div className="flex gap-6 font-mono">
                 <div>
-                  <span className="text-slate-500">Planificado Entr:</span> <strong className="text-slate-800">{totalToDeliver}</strong>
-                  <span className="mx-2 text-slate-300">|</span>
-                  <span className="text-slate-500">Real Entr:</span> <strong className="text-emerald-700">{totalActualDelivered}</strong>
+                  <span className="text-slate-500">Entregados:</span> <strong className="text-emerald-700">{totalActualDelivered}</strong>
                 </div>
                 <div>
-                  <span className="text-slate-500">Planificado Reco:</span> <strong className="text-slate-800">{totalToCollect}</strong>
-                  <span className="mx-2 text-slate-300">|</span>
-                  <span className="text-slate-500">Real Reco:</span> <strong className="text-indigo-700">{totalActualCollected}</strong>
+                  <span className="text-slate-500">Recolectados:</span> <strong className="text-indigo-700">{totalActualCollected}</strong>
                 </div>
               </div>
             </div>

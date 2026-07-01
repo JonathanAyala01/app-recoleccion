@@ -35,6 +35,10 @@ export interface RouteStop {
   packagesToCollect: number;
   actualPackagesDelivered?: number;
   actualPackagesCollected?: number;
+  /** El chofer confirmó que entregó la totalidad de bultos previstos en esta parada. */
+  allPackagesDelivered?: boolean;
+  /** El chofer indicó que había carga para recolectar en esta agencia. */
+  hadCollection?: boolean;
   stopTime?: string;
   observations?: string;
   recipientName?: string;

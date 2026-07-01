@@ -3,6 +3,7 @@ import { RefreshCw, Truck } from 'lucide-react';
 import { Agency, Driver, RouteSheet, Zone } from './types';
 import { createSeedAppData } from './lib/appData';
 import { DashboardStats } from './components/DashboardStats';
+import { OperationsDashboard } from './components/OperationsDashboard';
 import { AdminPanel } from './components/AdminPanel';
 import { DriverPanel } from './components/DriverPanel';
 import { RouteDetailsModal } from './components/RouteDetailsModal';
@@ -102,9 +103,6 @@ export default function App() {
   const [routeSheets, setRouteSheets] = useState<RouteSheet[]>(initialState.routeSheets);
   const [zones, setZones] = useState<Zone[]>(initialState.zones);
   const [selectedRouteForModal, setSelectedRouteForModal] = useState<RouteSheet | null>(null);
-  const [mobileActiveView, setMobileActiveView] = useState<'admin' | 'driver'>(
-    portalView === 'chofer' ? 'driver' : 'admin'
-  );
 
   useEffect(() => {
     if (!hasStoredData()) {
@@ -287,27 +285,6 @@ export default function App() {
               </a>
             </div>
 
-            {portalView === 'both' && (
-              <div className="flex rounded-lg border border-slate-800 bg-slate-900 p-0.5 sm:hidden">
-                <button
-                  onClick={() => setMobileActiveView('admin')}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    mobileActiveView === 'admin' ? 'bg-indigo-600 text-white' : 'text-slate-400'
-                  }`}
-                >
-                  Admin
-                </button>
-                <button
-                  onClick={() => setMobileActiveView('driver')}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    mobileActiveView === 'driver' ? 'bg-indigo-600 text-white' : 'text-slate-400'
-                  }`}
-                >
-                  Chofer
-                </button>
-              </div>
-            )}
-
             <button
               onClick={resetToDefault}
               className="inline-flex items-center gap-2 rounded-lg border border-slate-800 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 transition-colors hover:bg-slate-900 hover:text-white"
@@ -324,12 +301,17 @@ export default function App() {
           <DashboardStats routeSheets={routeSheets} agencies={agencies} drivers={drivers} />
         </section>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <section
-            className={`space-y-6 ${
-              portalView === 'both' ? 'lg:col-span-8' : 'lg:col-span-12'
-            } ${portalView === 'both' && mobileActiveView === 'admin' ? 'block' : portalView === 'both' ? 'hidden sm:block' : 'block'}`}
-          >
+        <section className="mb-6">
+          <OperationsDashboard
+            routeSheets={routeSheets}
+            agencies={agencies}
+            drivers={drivers}
+            zones={zones}
+          />
+        </section>
+
+        <div className="grid grid-cols-1 gap-6">
+          <section className="space-y-6">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
               <div className="mb-4 flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-indigo-500" />
@@ -357,27 +339,6 @@ export default function App() {
               />
             </div>
           </section>
-
-          <aside
-            className={`flex flex-col items-center justify-start space-y-6 ${
-              portalView === 'both' ? 'lg:col-span-4' : 'lg:col-span-12'
-            } ${portalView === 'both' && mobileActiveView === 'driver' ? 'block' : portalView === 'both' ? 'hidden sm:block' : 'block'}`}
-          >
-            <div className="w-full max-w-sm">
-              <DriverPanel
-                drivers={drivers}
-                routeSheets={routeSheets}
-                agencies={agencies}
-                onUpdateRouteSheet={handleUpdateRouteSheet}
-              />
-            </div>
-
-            <div className="max-w-sm rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-center">
-              <p className="text-[10px] leading-relaxed text-slate-500">
-                Portal móvil del chofer para carga, entrega y firma digital.
-              </p>
-            </div>
-          </aside>
         </div>
       </main>
 

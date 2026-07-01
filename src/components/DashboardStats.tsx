@@ -21,9 +21,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
   const completedRoutes = routeSheets.filter(r => r.status === 'completed').length;
   
   // Total packages counters
-  let totalScheduledDeliveries = 0;
   let totalActualDeliveries = 0;
-  let totalScheduledCollections = 0;
   let totalActualCollections = 0;
   let totalStopsCount = 0;
   let completedStopsCount = 0;
@@ -31,9 +29,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
   routeSheets.forEach(r => {
     r.stops.forEach(s => {
       totalStopsCount++;
-      totalScheduledDeliveries += s.packagesToDeliver;
-      totalScheduledCollections += s.packagesToCollect;
-      
+
       if (s.status === 'completed') {
         completedStopsCount++;
         totalActualDeliveries += s.actualPackagesDelivered ?? 0;
@@ -70,10 +66,10 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
       <div className="bg-white border border-slate-200 rounded-2xl p-4.5 shadow-xs flex items-center justify-between">
         <div>
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Bultos Entregados</span>
-          <h3 className="text-xl font-bold text-slate-900 mt-1.5 font-mono">{totalActualDeliveries} <span className="text-xs font-normal text-slate-400">/ {totalScheduledDeliveries}</span></h3>
+          <h3 className="text-xl font-bold text-slate-900 mt-1.5 font-mono">{totalActualDeliveries}</h3>
           <div className="text-[10px] text-emerald-600 mt-1 flex items-center gap-1 font-semibold">
             <CheckSquare className="w-3 h-3" />
-            {totalScheduledDeliveries - totalActualDeliveries} pendientes
+            Valores reales registrados
           </div>
         </div>
         <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
