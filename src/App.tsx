@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { RefreshCw, Truck } from 'lucide-react';
-import { Agency, Driver, RouteSheet, Zone } from './types';
-import { createSeedAppData } from './lib/appData';
+import { RefreshCw } from 'lucide-react';
+import { Agency, Driver, InternalUnit, RouteSheet, Zone } from './types';
+import { createSeedAppData, normalizeAppData } from './lib/appData';
 import { DashboardStats } from './components/DashboardStats';
 import { OperationsDashboard } from './components/OperationsDashboard';
 import { AdminPanel } from './components/AdminPanel';
@@ -11,6 +11,7 @@ import { RouteDetailsModal } from './components/RouteDetailsModal';
 const STORAGE_KEYS = {
   agencies: 'logistics_agencies',
   drivers: 'logistics_drivers',
+  internals: 'logistics_internals',
   routeSheets: 'logistics_routes',
   zones: 'logistics_zones',
 } as const;
@@ -59,11 +60,18 @@ const parseCollection = <T,>(key: string): T[] => {
 const readStoredState = () => {
   const agencies = parseCollection<Agency>(STORAGE_KEYS.agencies);
   const drivers = parseCollection<Driver>(STORAGE_KEYS.drivers);
+  const internals = parseCollection<InternalUnit>(STORAGE_KEYS.internals);
   const routeSheets = parseCollection<RouteSheet>(STORAGE_KEYS.routeSheets);
   const zones = parseCollection<Zone>(STORAGE_KEYS.zones);
 
-  if (agencies.length || drivers.length || routeSheets.length || zones.length) {
-    return { agencies, drivers, routeSheets, zones };
+  if (agencies.length || drivers.length || internals.length || routeSheets.length || zones.length) {
+    return normalizeAppData({
+      agencies,
+      drivers,
+      internals: internals.length > 0 ? internals : createSeedAppData().internals,
+      routeSheets,
+      zones,
+    });
   }
 
   return createSeedAppData();
@@ -75,6 +83,7 @@ const hasStoredData = (): boolean => {
   return (
     parseCollection<Agency>(STORAGE_KEYS.agencies).length > 0 ||
     parseCollection<Driver>(STORAGE_KEYS.drivers).length > 0 ||
+    parseCollection<InternalUnit>(STORAGE_KEYS.internals).length > 0 ||
     parseCollection<RouteSheet>(STORAGE_KEYS.routeSheets).length > 0 ||
     parseCollection<Zone>(STORAGE_KEYS.zones).length > 0
   );
@@ -83,6 +92,7 @@ const hasStoredData = (): boolean => {
 const writeStateToStorage = (state: {
   agencies: Agency[];
   drivers: Driver[];
+  internals: InternalUnit[];
   routeSheets: RouteSheet[];
   zones: Zone[];
 }) => {
@@ -90,6 +100,7 @@ const writeStateToStorage = (state: {
 
   localStorage.setItem(STORAGE_KEYS.agencies, JSON.stringify(state.agencies));
   localStorage.setItem(STORAGE_KEYS.drivers, JSON.stringify(state.drivers));
+  localStorage.setItem(STORAGE_KEYS.internals, JSON.stringify(state.internals));
   localStorage.setItem(STORAGE_KEYS.routeSheets, JSON.stringify(state.routeSheets));
   localStorage.setItem(STORAGE_KEYS.zones, JSON.stringify(state.zones));
 };
@@ -100,6 +111,7 @@ export default function App() {
 
   const [agencies, setAgencies] = useState<Agency[]>(initialState.agencies);
   const [drivers, setDrivers] = useState<Driver[]>(initialState.drivers);
+  const [internals, setInternals] = useState<InternalUnit[]>(initialState.internals);
   const [routeSheets, setRouteSheets] = useState<RouteSheet[]>(initialState.routeSheets);
   const [zones, setZones] = useState<Zone[]>(initialState.zones);
   const [selectedRouteForModal, setSelectedRouteForModal] = useState<RouteSheet | null>(null);
@@ -121,6 +133,13 @@ export default function App() {
     setDrivers(next);
     if (canUseLocalStorage()) {
       localStorage.setItem(STORAGE_KEYS.drivers, JSON.stringify(next));
+    }
+  };
+
+  const persistInternals = (next: InternalUnit[]) => {
+    setInternals(next);
+    if (canUseLocalStorage()) {
+      localStorage.setItem(STORAGE_KEYS.internals, JSON.stringify(next));
     }
   };
 
@@ -151,6 +170,28 @@ export default function App() {
     persistDrivers([...drivers, newDriver]);
   };
 
+  const handleAddInternal = (newInternal: InternalUnit) => {
+    persistInternals([...internals, newInternal]);
+  };
+
+  const handleUpdateInternal = (updatedInternal: InternalUnit) => {
+    persistInternals(internals.map((item) => (item.id === updatedInternal.id ? updatedInternal : item)));
+  };
+
+  const handleDeleteInternal = (id: string) => {
+    const unit = internals.find((item) => item.id === id);
+    if (!unit) return;
+
+    const usedInRoutes = routeSheets.some((route) => route.internalUnit === unit.code);
+    const message = usedInRoutes
+      ? `El interno "${unit.code}" ya está usado en una hoja de ruta. ¿Desea eliminarlo igualmente?`
+      : `¿Está seguro de eliminar el interno "${unit.code}"?`;
+
+    if (confirm(message)) {
+      persistInternals(internals.filter((item) => item.id !== id));
+    }
+  };
+
   const handleDeleteDriver = (id: string) => {
     const driver = drivers.find((item) => item.id === id);
     if (!driver) return;
@@ -176,8 +217,6 @@ export default function App() {
         ...route,
         driverName: updatedDriver.name,
         legajo: updatedDriver.legajo,
-        internalUnit: updatedDriver.internalUnit,
-        licensePlate: updatedDriver.licensePlate,
       };
     });
 
@@ -234,6 +273,7 @@ export default function App() {
     const seedState = createSeedAppData();
     setAgencies(seedState.agencies);
     setDrivers(seedState.drivers);
+    setInternals(seedState.internals);
     setRouteSheets(seedState.routeSheets);
     setZones(seedState.zones);
     setSelectedRouteForModal(null);
@@ -260,11 +300,9 @@ export default function App() {
       <header className="sticky top-0 z-40 bg-slate-950 text-white shadow-lg">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 shadow">
-              <Truck className="h-5 w-5" />
-            </div>
+            <img src="/logo.png" alt="Logo" className="h-16 w-16 md:h-18 md:w-18 object-contain drop-shadow-[0_10px_18px_rgba(15,23,42,0.25)]" />
             <div>
-              <h1 className="text-sm font-bold tracking-tight md:text-base">LogiSign Pro</h1>
+              <h1 className="text-sm font-bold tracking-tight md:text-base">CRUCERO EXPRESS-RECOLECCIÓN</h1>
               <p className="text-[10px] text-slate-400 font-mono">Control de reparto y firma digital</p>
             </div>
           </div>
@@ -324,11 +362,15 @@ export default function App() {
                 agencies={agencies}
                 zones={zones}
                 drivers={drivers}
+                internals={internals}
                 routeSheets={routeSheets}
                 onAddAgency={handleAddAgency}
                 onAddDriver={handleAddDriver}
+                onAddInternal={handleAddInternal}
                 onDeleteDriver={handleDeleteDriver}
                 onUpdateDriver={handleUpdateDriver}
+                onUpdateInternal={handleUpdateInternal}
+                onDeleteInternal={handleDeleteInternal}
                 onAddZone={handleAddZone}
                 onUpdateZone={handleUpdateZone}
                 onDeleteZone={handleDeleteZone}

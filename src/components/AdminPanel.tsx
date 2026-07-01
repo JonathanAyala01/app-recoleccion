@@ -3,18 +3,22 @@ import {
   Plus, Search, MapPin, Truck, Calendar, User, ArrowUp, ArrowDown, Trash2, 
   Layers, Check, ClipboardList, Info, Sparkles, Filter, Pencil, X
 } from 'lucide-react';
-import { Agency, Zone, Driver, RouteSheet, RouteStop } from '../types';
+import { Agency, Zone, Driver, InternalUnit, RouteSheet, RouteStop } from '../types';
 import { createDriverUsername, ensureUniqueDriverUsername, generateDriverPassword } from '../lib/appData';
 
 interface AdminPanelProps {
   agencies: Agency[];
   zones: Zone[];
   drivers: Driver[];
+  internals: InternalUnit[];
   routeSheets: RouteSheet[];
   onAddAgency: (agency: Agency) => void;
   onAddDriver: (driver: Driver) => void;
+  onAddInternal: (internal: InternalUnit) => void;
   onDeleteDriver: (driverId: string) => void;
   onUpdateDriver: (driver: Driver) => void;
+  onUpdateInternal: (internal: InternalUnit) => void;
+  onDeleteInternal: (internalId: string) => void;
   onAddZone: (zone: Zone) => void;
   onUpdateZone: (zone: Zone) => void;
   onDeleteZone: (zoneId: string) => void;
@@ -28,11 +32,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   agencies,
   zones,
   drivers,
+  internals,
   routeSheets,
   onAddAgency,
   onAddDriver,
+  onAddInternal,
   onDeleteDriver,
   onUpdateDriver,
+  onUpdateInternal,
+  onDeleteInternal,
   onAddZone,
   onUpdateZone,
   onDeleteZone,
@@ -42,18 +50,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onDeleteRouteSheet
 }) => {
   // Navigation tabs within Admin Panel
-  const [activeTab, setActiveTab] = useState<'routes' | 'agencies' | 'drivers' | 'zones'>('routes');
+  const [activeTab, setActiveTab] = useState<'routes' | 'agencies' | 'drivers' | 'internals' | 'zones'>('routes');
   
   // Search / Filters
   const [searchAgencyQuery, setSearchAgencyQuery] = useState('');
   const [filterAgencyZone, setFilterAgencyZone] = useState('all');
   const [searchDriverQuery, setSearchDriverQuery] = useState('');
+  const [searchInternalQuery, setSearchInternalQuery] = useState('');
 
   // Route Sheet Builder Form States
   const [isCreatingRoute, setIsCreatingRoute] = useState(false);
   const [selectedDriverId, setSelectedDriverId] = useState('');
   const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
   const [initialKm, setInitialKm] = useState(10000);
+  const [selectedInternalId, setSelectedInternalId] = useState('');
   
   // Current stops inside the route currently being built
   const [builderStops, setBuilderStops] = useState<Omit<RouteStop, 'id'>[]>([]);
@@ -74,25 +84,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isAddingDriver, setIsAddingDriver] = useState(false);
   const [newDriverName, setNewDriverName] = useState('');
   const [newDriverLegajo, setNewDriverLegajo] = useState('');
-  const [newDriverUnit, setNewDriverUnit] = useState('');
-  const [newDriverPlate, setNewDriverPlate] = useState('');
   const [newDriverPassword, setNewDriverPassword] = useState('');
 
   // Quick form for editing an existing driver
   const [editingDriverId, setEditingDriverId] = useState<string | null>(null);
   const [editDriverName, setEditDriverName] = useState('');
   const [editDriverLegajo, setEditDriverLegajo] = useState('');
-  const [editDriverUnit, setEditDriverUnit] = useState('');
-  const [editDriverPlate, setEditDriverPlate] = useState('');
   const [editDriverPassword, setEditDriverPassword] = useState('');
+
+  // Quick form for adding/editing internals
+  const [isAddingInternal, setIsAddingInternal] = useState(false);
+  const [newInternalCode, setNewInternalCode] = useState('');
+  const [newInternalPlate, setNewInternalPlate] = useState('');
+  const [newInternalDescription, setNewInternalDescription] = useState('');
+  const [newInternalStatus, setNewInternalStatus] = useState<'operativo' | 'fuera_servicio'>('operativo');
+  const [newInternalMaintenanceNote, setNewInternalMaintenanceNote] = useState('');
+  const [editingInternalId, setEditingInternalId] = useState<string | null>(null);
+  const [editInternalCode, setEditInternalCode] = useState('');
+  const [editInternalPlate, setEditInternalPlate] = useState('');
+  const [editInternalDescription, setEditInternalDescription] = useState('');
+  const [editInternalStatus, setEditInternalStatus] = useState<'operativo' | 'fuera_servicio'>('operativo');
+  const [editInternalMaintenanceNote, setEditInternalMaintenanceNote] = useState('');
 
   // Handle editing click pre-fill
   const handleStartEditDriver = (driver: Driver) => {
     setEditingDriverId(driver.id);
     setEditDriverName(driver.name);
     setEditDriverLegajo(driver.legajo);
-    setEditDriverUnit(driver.internalUnit);
-    setEditDriverPlate(driver.licensePlate);
     setEditDriverPassword(driver.password);
     // Also close the add form if open
     setIsAddingDriver(false);
@@ -101,7 +119,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Submit edited driver
   const handleSaveEditDriver = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingDriverId || !editDriverName || !editDriverLegajo || !editDriverUnit || !editDriverPlate) return;
+    if (!editingDriverId || !editDriverName || !editDriverLegajo) return;
     const username = ensureUniqueDriverUsername(
       editDriverName,
       drivers.filter((driver) => driver.id !== editingDriverId).map((driver) => driver.username),
@@ -114,8 +132,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       username,
       password: editDriverPassword || generateDriverPassword(),
       legajo: editDriverLegajo,
-      internalUnit: editDriverUnit,
-      licensePlate: editDriverPlate
+      internalUnit: '',
+      licensePlate: ''
     };
 
     onUpdateDriver(updatedDriver);
@@ -124,9 +142,68 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setEditingDriverId(null);
     setEditDriverName('');
     setEditDriverLegajo('');
-    setEditDriverUnit('');
-    setEditDriverPlate('');
     setEditDriverPassword('');
+  };
+
+  const handleCreateInternal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newInternalCode.trim() || !newInternalPlate.trim()) return;
+    if (newInternalStatus === 'fuera_servicio' && !newInternalMaintenanceNote.trim()) {
+      alert('Si el interno está fuera de servicio, indicá qué le falta hacer.');
+      return;
+    }
+
+    const newInternal: InternalUnit = {
+      id: `int-${Date.now()}`,
+      code: newInternalCode.trim(),
+      licensePlate: newInternalPlate.trim(),
+      status: newInternalStatus,
+      description: newInternalDescription.trim(),
+      maintenanceNote: newInternalStatus === 'fuera_servicio' ? newInternalMaintenanceNote.trim() : '',
+    };
+
+    onAddInternal(newInternal);
+    setNewInternalCode('');
+    setNewInternalPlate('');
+    setNewInternalDescription('');
+    setNewInternalStatus('operativo');
+    setNewInternalMaintenanceNote('');
+    setIsAddingInternal(false);
+  };
+
+  const handleStartEditInternal = (internal: InternalUnit) => {
+    setEditingInternalId(internal.id);
+    setEditInternalCode(internal.code);
+    setEditInternalPlate(internal.licensePlate);
+    setEditInternalDescription(internal.description || '');
+    setEditInternalStatus(internal.status || 'operativo');
+    setEditInternalMaintenanceNote(internal.maintenanceNote || '');
+    setIsAddingInternal(false);
+  };
+
+  const handleSaveEditInternal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingInternalId || !editInternalCode.trim() || !editInternalPlate.trim()) return;
+    if (editInternalStatus === 'fuera_servicio' && !editInternalMaintenanceNote.trim()) {
+      alert('Si el interno está fuera de servicio, indicá qué le falta hacer.');
+      return;
+    }
+
+    onUpdateInternal({
+      id: editingInternalId,
+      code: editInternalCode.trim(),
+      licensePlate: editInternalPlate.trim(),
+      status: editInternalStatus,
+      description: editInternalDescription.trim(),
+      maintenanceNote: editInternalStatus === 'fuera_servicio' ? editInternalMaintenanceNote.trim() : '',
+    });
+
+    setEditingInternalId(null);
+    setEditInternalCode('');
+    setEditInternalPlate('');
+    setEditInternalDescription('');
+    setEditInternalStatus('operativo');
+    setEditInternalMaintenanceNote('');
   };
 
   // Quick form for adding/editing zones
@@ -142,10 +219,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const COLOR_PRESETS = [
     { value: 'indigo', label: 'Indigo / Azul', bg: 'bg-indigo-500', text: 'text-indigo-600' },
     { value: 'emerald', label: 'Esmeralda / Verde', bg: 'bg-emerald-500', text: 'text-emerald-600' },
-    { value: 'amber', label: 'Ãmbar / Naranja', bg: 'bg-amber-500', text: 'text-amber-600' },
+    { value: 'amber', label: 'Ámbar / Naranja', bg: 'bg-amber-500', text: 'text-amber-600' },
     { value: 'rose', label: 'Rosa / Rojo', bg: 'bg-rose-500', text: 'text-rose-600' },
     { value: 'sky', label: 'Cielo / Celeste', bg: 'bg-sky-500', text: 'text-sky-600' },
-    { value: 'violet', label: 'Violeta / PÃºrpura', bg: 'bg-violet-500', text: 'text-violet-600' },
+    { value: 'violet', label: 'Violeta / Púrpura', bg: 'bg-violet-500', text: 'text-violet-600' },
     { value: 'orange', label: 'Naranja Vivo', bg: 'bg-orange-500', text: 'text-orange-600' },
     { value: 'slate', label: 'Pizarra / Gris', bg: 'bg-slate-500', text: 'text-slate-600' },
   ];
@@ -217,7 +294,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     // Check if agency is already in current stops
     if (builderStops.some(s => s.agencyId === newStopAgencyId)) {
-      alert("Esta agencia ya estÃ¡ agregada en el itinerario de esta hoja de ruta.");
+      alert("Esta agencia ya está agregada en el itinerario de esta hoja de ruta.");
       return;
     }
 
@@ -279,13 +356,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       alert("Por favor seleccione un chofer.");
       return;
     }
+    if (!selectedInternalId) {
+      alert("Por favor seleccione un interno para la hoja de ruta.");
+      return;
+    }
     if (builderStops.length === 0) {
       alert("Debe agregar al menos una parada a la hoja de ruta.");
       return;
     }
 
     const driver = drivers.find(d => d.id === selectedDriverId);
+    const internal = internals.find((item) => item.id === selectedInternalId);
     if (!driver) return;
+    if (!internal) {
+      alert("El interno seleccionado no existe.");
+      return;
+    }
+    if (internal.status !== 'operativo') {
+      alert("El interno seleccionado está fuera de servicio y no puede asignarse a una hoja de ruta.");
+      return;
+    }
 
     // Map builder stops with unique IDs
     const finalStops: RouteStop[] = builderStops.map((stop, index) => ({
@@ -299,8 +389,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       driverId: driver.id,
       driverName: driver.name,
       legajo: driver.legajo,
-      internalUnit: driver.internalUnit,
-      licensePlate: driver.licensePlate,
+      internalUnit: internal.code,
+      licensePlate: internal.licensePlate,
       initialKm: Number(initialKm),
       stops: finalStops,
       status: 'assigned',
@@ -312,6 +402,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     // Clear Builder States
     setIsCreatingRoute(false);
     setSelectedDriverId('');
+    setSelectedInternalId('');
     setBuilderStops([]);
   };
 
@@ -340,7 +431,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Create new Driver
   const handleCreateDriver = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDriverName || !newDriverLegajo || !newDriverUnit || !newDriverPlate) return;
+    if (!newDriverName || !newDriverLegajo) return;
     const username = ensureUniqueDriverUsername(
       newDriverName,
       drivers.map((driver) => driver.username),
@@ -353,8 +444,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       username,
       password: newDriverPassword || generateDriverPassword(),
       legajo: newDriverLegajo,
-      internalUnit: newDriverUnit,
-      licensePlate: newDriverPlate
+      internalUnit: '',
+      licensePlate: ''
     };
 
     onAddDriver(newDriver);
@@ -362,8 +453,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     // Reset
     setNewDriverName('');
     setNewDriverLegajo('');
-    setNewDriverUnit('');
-    setNewDriverPlate('');
     setNewDriverPassword('');
     setIsAddingDriver(false);
   };
@@ -380,8 +469,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const filteredDrivers = drivers.filter(driver => 
     driver.name.toLowerCase().includes(searchDriverQuery.toLowerCase()) || 
     driver.username.toLowerCase().includes(searchDriverQuery.toLowerCase()) ||
-    driver.legajo.toLowerCase().includes(searchDriverQuery.toLowerCase()) ||
-    driver.internalUnit.toLowerCase().includes(searchDriverQuery.toLowerCase())
+    driver.legajo.toLowerCase().includes(searchDriverQuery.toLowerCase())
+  );
+
+  const filteredInternals = internals.filter((unit) =>
+    unit.code.toLowerCase().includes(searchInternalQuery.toLowerCase()) ||
+    unit.licensePlate.toLowerCase().includes(searchInternalQuery.toLowerCase()) ||
+    (unit.description || '').toLowerCase().includes(searchInternalQuery.toLowerCase())
   );
 
   const filteredZones = zones.filter(zone =>
@@ -465,6 +559,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             Choferes
           </button>
           <button
+            onClick={() => setActiveTab('internals')}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition-all ${
+              activeTab === 'internals' 
+                ? 'bg-white text-slate-900 shadow-sm' 
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Truck className="w-3.5 h-3.5" />
+            Internos
+          </button>
+          <button
             onClick={() => setActiveTab('zones')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md transition-all ${
               activeTab === 'zones' 
@@ -531,7 +636,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="bg-indigo-50 border-b border-indigo-100 px-6 py-4 flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-indigo-600" />
-                  <h3 className="text-sm font-bold text-slate-950">Planificador de Hoja de Ruta LogÃ­stica</h3>
+                  <h3 className="text-sm font-bold text-slate-950">Planificador de Hoja de Ruta Logística</h3>
                 </div>
                 <button
                   onClick={() => setIsCreatingRoute(false)}
@@ -556,7 +661,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <option value="">-- Seleccionar Chofer --</option>
                       {drivers.map(d => (
                       <option key={d.id} value={d.id}>
-                          {d.name} (@{d.username} | {d.legajo} | {d.internalUnit})
+                          {d.name} (@{d.username} | {d.legajo})
                       </option>
                       ))}
                     </select>
@@ -576,7 +681,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                   <div className="flex flex-col">
                     <label className="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-                      <Truck className="w-3.5 h-3.5 text-slate-400" /> Km Inicial (OdÃ³metro)
+                      <Truck className="w-3.5 h-3.5 text-slate-400" /> Km Inicial (Odómetro)
                     </label>
                     <input
                       type="number"
@@ -587,14 +692,42 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 </div>
 
-                {/* âš¡ Carga Masiva por Zona */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="flex flex-col">
+                    <label className="text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
+                      <Truck className="w-3.5 h-3.5 text-slate-400" /> Interno asignado
+                    </label>
+                    <select
+                      value={selectedInternalId}
+                      onChange={(e) => setSelectedInternalId(e.target.value)}
+                      className="text-xs border border-slate-200 rounded-lg p-2.5 bg-slate-50 focus:bg-white focus:outline-indigo-500 text-slate-800"
+                    >
+                      <option value="">-- Seleccionar Interno --</option>
+                      {internals.filter((unit) => unit.status === 'operativo').map((unit) => (
+                        <option key={unit.id} value={unit.id}>
+                          {unit.code} - {unit.licensePlate}
+                        </option>
+                      ))}
+                    </select>
+                    {internals.filter((unit) => unit.status === 'operativo').length === 0 && (
+                      <p className="mt-1 text-[10px] text-rose-600">
+                        No hay internos operativos disponibles para asignar.
+                      </p>
+                    )}
+                    <p className="mt-1 text-[10px] text-slate-500">
+                      El interno se asigna al crear la hoja y no queda fijo en el chofer.
+                    </p>
+                  </div>
+                </div>
+
+                {/* ⚡ Carga Masiva por Zona */}
                 <div className="border border-indigo-100 bg-indigo-50/40 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex-1">
                     <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5 uppercase tracking-wide">
-                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Carga RÃ¡pida Completa por Zona
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Carga Rápida Completa por Zona
                     </span>
                     <p className="text-[10px] text-indigo-700 mt-0.5 leading-relaxed">
-                      Seleccione una zona para agregar de forma automÃ¡tica todas sus agencias asociadas como paradas de esta hoja de ruta.
+                      Seleccione una zona para agregar de forma automática todas sus agencias asociadas como paradas de esta hoja de ruta.
                     </p>
                   </div>
                   <div>
@@ -614,7 +747,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         const agenciesToAdd = zoneAgencies.filter(a => !existingAgencyIds.has(a.id));
 
                         if (agenciesToAdd.length === 0) {
-                          alert("Todas las agencias de esta zona ya estÃ¡n en la hoja de ruta.");
+                          alert("Todas las agencias de esta zona ya están en la hoja de ruta.");
                           e.target.value = '';
                           return;
                         }
@@ -681,7 +814,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           const zone = getZone(a.zoneId);
                           return (
                             <option key={a.id} value={a.id}>
-                              ({a.code}) {a.name} â€” {zone?.name || 'Sin Zona'}
+                              ({a.code}) {a.name} — {zone?.name || 'Sin Zona'}
                             </option>
                           );
                         })}
@@ -730,7 +863,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
                   {builderStops.length === 0 ? (
                     <div className="border border-dashed border-slate-200 rounded-xl p-8 text-center text-slate-400 text-xs">
-                      Ninguna agencia agregada a la hoja de ruta todavÃ­a. Use el panel de arriba para armar el recorrido.
+                      Ninguna agencia agregada a la hoja de ruta todavía. Use el panel de arriba para armar el recorrido.
                     </div>
                   ) : (
                     <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white">
@@ -739,7 +872,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-[11px] font-semibold">
                             <th className="p-3 w-12 text-center">Orden</th>
                             <th className="p-3">Agencia</th>
-                            <th className="p-3">DirecciÃ³n</th>
+                            <th className="p-3">Dirección</th>
                             <th className="p-3 text-center w-24">Hora Est.</th>
                             <th className="p-3 text-center w-28">Bultos p/Entrega</th>
                             <th className="p-3 text-center w-28">Acciones</th>
@@ -855,7 +988,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               {routeSheets.length === 0 ? (
                 <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 text-sm shadow-xs">
                   <ClipboardList className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                  No hay hojas de ruta cargadas todavÃ­a. Haga clic en <strong className="text-slate-700">"Crear Hoja de Ruta"</strong> para iniciar.
+                  No hay hojas de ruta cargadas todavía. Haga clic en <strong className="text-slate-700">"Crear Hoja de Ruta"</strong> para iniciar.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -893,7 +1026,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               Km Inicial: <strong className="text-slate-900">{route.initialKm}</strong>
                             </div>
                             <div className="text-slate-500 flex items-center gap-1">
-                              Km Final: <strong className="text-slate-900">{route.finalKm || 'â€”'}</strong>
+                              Km Final: <strong className="text-slate-900">{route.finalKm || '—'}</strong>
                             </div>
                           </div>
 
@@ -948,7 +1081,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Buscar agencia por cÃ³digo, nombre o direcciÃ³n..."
+                placeholder="Buscar agencia por código, nombre o dirección..."
                 value={searchAgencyQuery}
                 onChange={(e) => setSearchAgencyQuery(e.target.value)}
                 className="pl-9 pr-4 py-2 w-full text-xs border border-slate-200 rounded-lg focus:outline-indigo-500 text-slate-800"
@@ -978,7 +1111,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </h3>
               <form onSubmit={handleCreateAgency} className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">CÃ³digo Ãšnico (e.g. 2593)</label>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Código Único (ej. 2593)</label>
                   <input
                     type="text"
                     required
@@ -989,7 +1122,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Nombre / IdentificaciÃ³n</label>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Nombre / Identificación</label>
                   <input
                     type="text"
                     required
@@ -1000,7 +1133,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">DirecciÃ³n Completa</label>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Dirección Completa</label>
                   <input
                     type="text"
                     required
@@ -1046,9 +1179,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs font-semibold">
-                  <th className="py-3 px-4 w-20 font-mono">CÃ³digo</th>
+                  <th className="py-3 px-4 w-20 font-mono">Código</th>
                   <th className="py-3 px-4">Nombre de la Agencia</th>
-                  <th className="py-3 px-4">DirecciÃ³n</th>
+                  <th className="py-3 px-4">Dirección</th>
                   <th className="py-3 px-4 w-52">Zona Asignada</th>
                 </tr>
               </thead>
@@ -1086,7 +1219,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </table>
             {filteredAgencies.length === 0 && (
               <div className="p-8 text-center text-slate-400 text-xs">
-                No se encontraron agencias que coincidan con la bÃºsqueda.
+                No se encontraron agencias que coincidan con la búsqueda.
               </div>
             )}
           </div>
@@ -1103,7 +1236,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Buscar chofer por nombre, legajo o interno..."
+                placeholder="Buscar chofer por nombre o legajo..."
                 value={searchDriverQuery}
                 onChange={(e) => setSearchDriverQuery(e.target.value)}
                 className="pl-9 pr-4 py-2 w-full text-xs border border-slate-200 rounded-lg focus:outline-indigo-500 text-slate-800"
@@ -1125,12 +1258,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     required
                     value={newDriverName}
                     onChange={(e) => setNewDriverName(e.target.value)}
-                    placeholder="Esteban GonzÃ¡lez"
+                    placeholder="Esteban González"
                     className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-indigo-500 text-slate-800"
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Usuario Ãºnico</label>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Usuario único</label>
                   <div className="text-xs border border-dashed border-slate-200 rounded-lg p-2 bg-slate-50 text-slate-700 font-mono">
                     @{createDriverUsername(newDriverName || 'nombre', newDriverLegajo || 'legajo')}
                   </div>
@@ -1147,35 +1280,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">ContraseÃ±a</label>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Contraseña</label>
                   <input
                     type="text"
                     required
                     value={newDriverPassword}
                     onChange={(e) => setNewDriverPassword(e.target.value)}
                     placeholder="1234 o clave segura"
-                    className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-indigo-500 text-slate-800 font-mono"
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">NÂ° de Interno (CamiÃ³n/VehÃ­culo)</label>
-                  <input
-                    type="text"
-                    required
-                    value={newDriverUnit}
-                    onChange={(e) => setNewDriverUnit(e.target.value)}
-                    placeholder="U-205"
-                    className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-indigo-500 text-slate-800 font-mono"
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Patente / MatrÃ­cula</label>
-                  <input
-                    type="text"
-                    required
-                    value={newDriverPlate}
-                    onChange={(e) => setNewDriverPlate(e.target.value)}
-                    placeholder="AF-120-PO"
                     className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-indigo-500 text-slate-800 font-mono"
                   />
                 </div>
@@ -1227,12 +1338,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     required
                     value={editDriverName}
                     onChange={(e) => setEditDriverName(e.target.value)}
-                    placeholder="Esteban GonzÃ¡lez"
+                    placeholder="Esteban González"
                     className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-amber-500 text-slate-800"
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Usuario Ãºnico</label>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Usuario único</label>
                   <div className="text-xs border border-dashed border-slate-200 rounded-lg p-2 bg-slate-50 text-slate-700 font-mono">
                     @{ensureUniqueDriverUsername(
                       editDriverName || 'nombre',
@@ -1253,35 +1364,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">ContraseÃ±a</label>
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Contraseña</label>
                   <input
                     type="text"
                     required
                     value={editDriverPassword}
                     onChange={(e) => setEditDriverPassword(e.target.value)}
                     placeholder="Clave asignada"
-                    className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-amber-500 text-slate-800 font-mono"
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">NÂ° de Interno (CamiÃ³n/VehÃ­culo)</label>
-                  <input
-                    type="text"
-                    required
-                    value={editDriverUnit}
-                    onChange={(e) => setEditDriverUnit(e.target.value)}
-                    placeholder="U-205"
-                    className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-amber-500 text-slate-800 font-mono"
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Patente / MatrÃ­cula</label>
-                  <input
-                    type="text"
-                    required
-                    value={editDriverPlate}
-                    onChange={(e) => setEditDriverPlate(e.target.value)}
-                    placeholder="AF-120-PO"
                     className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-amber-500 text-slate-800 font-mono"
                   />
                 </div>
@@ -1329,16 +1418,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="text-right text-xs font-mono bg-slate-50 border border-slate-100 rounded-xl px-4 py-2">
-                    <div className="text-slate-500">
-                      Interno: <strong className="text-slate-800">{driver.internalUnit}</strong>
-                    </div>
-                    <div className="text-slate-400 text-[10px] mt-0.5">
-                      Patente: <strong className="text-slate-700">{driver.licensePlate}</strong>
-                    </div>
-                  </div>
-
+                  <div className="flex items-center gap-4">
                   <div className="flex flex-col gap-1.5">
                     <button
                       onClick={() => handleStartEditDriver(driver)}
@@ -1360,7 +1440,268 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             ))}
             {filteredDrivers.length === 0 && (
               <div className="col-span-2 p-8 text-center text-slate-400 text-xs">
-                No se encontraron choferes registrados con esa descripciÃ³n.
+                No se encontraron choferes registrados con esa descripción.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ======================= TAB 4: INTERNALS MANAGEMENT ======================= */}
+      {activeTab === 'internals' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3 bg-white p-4 rounded-xl border border-slate-200 items-start sm:items-center justify-between">
+            <div className="relative flex-1 min-w-[240px]">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscar interno por código, patente o descripción..."
+                value={searchInternalQuery}
+                onChange={(e) => setSearchInternalQuery(e.target.value)}
+                className="pl-9 pr-4 py-2 w-full text-xs border border-slate-200 rounded-lg focus:outline-indigo-500 text-slate-800"
+              />
+            </div>
+            <button
+              onClick={() => setIsAddingInternal(true)}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2.5 rounded-lg shadow-sm hover:shadow transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              Nuevo Interno
+            </button>
+          </div>
+
+          {isAddingInternal && (
+            <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-5 animate-in slide-in-from-top duration-150">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xs font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Alta de Interno
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsAddingInternal(false)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <form onSubmit={handleCreateInternal} className="grid grid-cols-1 sm:grid-cols-5 gap-4 items-end">
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Código Interno</label>
+                  <input
+                    type="text"
+                    required
+                    value={newInternalCode}
+                    onChange={(e) => setNewInternalCode(e.target.value)}
+                    placeholder="U-205"
+                    className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-indigo-500 text-slate-800 font-mono"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Patente / Matrícula</label>
+                  <input
+                    type="text"
+                    required
+                    value={newInternalPlate}
+                    onChange={(e) => setNewInternalPlate(e.target.value)}
+                    placeholder="AF-120-PO"
+                    className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-indigo-500 text-slate-800 font-mono"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Estado</label>
+                  <select
+                    value={newInternalStatus}
+                    onChange={(e) => setNewInternalStatus(e.target.value as 'operativo' | 'fuera_servicio')}
+                    className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-indigo-500 text-slate-800"
+                  >
+                    <option value="operativo">Operativo</option>
+                    <option value="fuera_servicio">Fuera de servicio</option>
+                  </select>
+                </div>
+                <div className="flex flex-col sm:col-span-2">
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Descripción (opcional)</label>
+                  <input
+                    type="text"
+                    value={newInternalDescription}
+                    onChange={(e) => setNewInternalDescription(e.target.value)}
+                    placeholder="Camión principal, backup, etc."
+                    className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-indigo-500 text-slate-800"
+                  />
+                </div>
+                {newInternalStatus === 'fuera_servicio' && (
+                  <div className="sm:col-span-5 flex flex-col">
+                    <label className="text-[10px] font-semibold text-slate-600 mb-1">Qué le falta hacer</label>
+                    <textarea
+                      value={newInternalMaintenanceNote}
+                      onChange={(e) => setNewInternalMaintenanceNote(e.target.value)}
+                      placeholder="Ej: cambio de aceite, reparación de frenos, revisión eléctrica..."
+                      className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-indigo-500 text-slate-800 min-h-[72px]"
+                    />
+                  </div>
+                )}
+                <div className="sm:col-span-5 flex justify-end gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingInternal(false)}
+                    className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-white rounded-lg transition-colors border border-transparent"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-1.5 rounded-lg shadow transition-colors cursor-pointer"
+                  >
+                    Guardar Interno
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {editingInternalId && (
+            <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-5 animate-in slide-in-from-top duration-150">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xs font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <Pencil className="w-3.5 h-3.5 text-amber-600" /> Modificar Interno
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setEditingInternalId(null)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <form onSubmit={handleSaveEditInternal} className="grid grid-cols-1 sm:grid-cols-5 gap-4 items-end">
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Código Interno</label>
+                  <input
+                    type="text"
+                    required
+                    value={editInternalCode}
+                    onChange={(e) => setEditInternalCode(e.target.value)}
+                    className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-amber-500 text-slate-800 font-mono"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Patente / Matrícula</label>
+                  <input
+                    type="text"
+                    required
+                    value={editInternalPlate}
+                    onChange={(e) => setEditInternalPlate(e.target.value)}
+                    className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-amber-500 text-slate-800 font-mono"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Estado</label>
+                  <select
+                    value={editInternalStatus}
+                    onChange={(e) => setEditInternalStatus(e.target.value as 'operativo' | 'fuera_servicio')}
+                    className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-amber-500 text-slate-800"
+                  >
+                    <option value="operativo">Operativo</option>
+                    <option value="fuera_servicio">Fuera de servicio</option>
+                  </select>
+                </div>
+                <div className="flex flex-col sm:col-span-2">
+                  <label className="text-[10px] font-semibold text-slate-600 mb-1">Descripción (opcional)</label>
+                  <input
+                    type="text"
+                    value={editInternalDescription}
+                    onChange={(e) => setEditInternalDescription(e.target.value)}
+                    className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-amber-500 text-slate-800"
+                  />
+                </div>
+                {editInternalStatus === 'fuera_servicio' && (
+                  <div className="sm:col-span-5 flex flex-col">
+                    <label className="text-[10px] font-semibold text-slate-600 mb-1">Qué le falta hacer</label>
+                    <textarea
+                      value={editInternalMaintenanceNote}
+                      onChange={(e) => setEditInternalMaintenanceNote(e.target.value)}
+                      className="text-xs border border-slate-200 rounded-lg p-2 bg-white focus:outline-amber-500 text-slate-800 min-h-[72px]"
+                    />
+                  </div>
+                )}
+                <div className="sm:col-span-5 flex justify-end gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingInternalId(null)}
+                    className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-white rounded-lg transition-colors border border-transparent"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-1.5 rounded-lg shadow transition-colors cursor-pointer"
+                  >
+                    Guardar Cambios
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredInternals.map((unit) => (
+              <div
+                key={unit.id}
+                className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs hover:shadow-sm transition-all flex items-center justify-between"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 bg-indigo-50 text-indigo-600 flex items-center justify-center rounded-xl">
+                    <Truck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">{unit.code}</h4>
+                    <div className="text-xs text-slate-500 font-mono mt-0.5">
+                      Patente: <strong className="text-slate-700">{unit.licensePlate}</strong>
+                    </div>
+                    <div className="mt-1">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                          unit.status === 'operativo'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-rose-100 text-rose-800'
+                        }`}
+                      >
+                        {unit.status === 'operativo' ? 'Operativo' : 'Fuera de servicio'}
+                      </span>
+                    </div>
+                    {unit.description && (
+                      <div className="text-xs text-slate-400 mt-0.5">{unit.description}</div>
+                    )}
+                    {unit.status === 'fuera_servicio' && unit.maintenanceNote && (
+                      <div className="text-xs text-rose-600 mt-1">
+                        Falta: {unit.maintenanceNote}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <button
+                      onClick={() => handleStartEditInternal(unit)}
+                      className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors border border-transparent hover:border-amber-100"
+                      title="Modificar Interno"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => onDeleteInternal(unit.id)}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100"
+                      title="Eliminar Interno"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {filteredInternals.length === 0 && (
+              <div className="col-span-2 p-8 text-center text-slate-400 text-xs">
+                No se encontraron internos registrados con esa descripción.
               </div>
             )}
           </div>

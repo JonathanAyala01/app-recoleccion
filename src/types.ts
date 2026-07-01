@@ -16,6 +16,15 @@ export interface Zone {
   color: string;
 }
 
+export interface InternalUnit {
+  id: string;
+  code: string;
+  licensePlate: string;
+  status: 'operativo' | 'fuera_servicio';
+  description?: string;
+  maintenanceNote?: string;
+}
+
 export interface Driver {
   id: string;
   name: string;

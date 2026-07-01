@@ -87,7 +87,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
     }
 
     if (!password) {
-      setLoginError('Ingrese su contraseÃ±a.');
+      setLoginError('Ingrese su contraseña.');
       return;
     }
 
@@ -265,9 +265,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
       <div className="min-h-[100dvh] w-full bg-slate-950 text-white flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-sm rounded-[2rem] border border-slate-800 bg-slate-900/95 shadow-2xl shadow-black/30 px-6 py-8">
           <div className="flex flex-col items-center text-center mb-8">
-            <div className="h-14 w-14 rounded-2xl bg-indigo-500/15 text-indigo-300 flex items-center justify-center border border-indigo-500/25 mb-4">
-              <Truck className="w-7 h-7" />
-            </div>
+            <img src="/logo.png" alt="Logo" className="h-20 w-20 object-contain mb-4 drop-shadow-[0_12px_20px_rgba(15,23,42,0.35)]" />
             <h2 className="text-2xl font-semibold tracking-tight text-white">Ingreso Chofer</h2>
             <p className="text-xs text-slate-400 mt-2 max-w-[240px]">
               Acceso privado con usuario y contraseña.
@@ -307,6 +305,14 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
             </button>
           </form>
 
+          <div className="mt-7 flex justify-center">
+            <img
+              src="/camioneta.png"
+              alt="Camioneta"
+              className="w-full max-w-[280px] object-contain drop-shadow-[0_18px_24px_rgba(15,23,42,0.35)]"
+            />
+          </div>
+
           {loginError && (
             <p className="mt-3 text-[11px] text-slate-400 text-center" aria-live="polite">
               {loginError}
@@ -324,12 +330,12 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
       {/* Mini App Header */}
       <div className="bg-slate-850 border-b border-slate-800 px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 bg-indigo-500 rounded-lg flex items-center justify-center font-bold text-xs">
-              {activeDriver?.name[0]}
-            </div>
+            <img src="/logo.png" alt="Logo" className="h-10 w-10 object-contain drop-shadow-[0_6px_12px_rgba(15,23,42,0.25)]" />
             <div>
               <h3 className="text-xs font-bold truncate max-w-[120px]">{activeDriver?.name}</h3>
-            <span className="text-[10px] text-slate-400 font-mono block">@{activeDriver?.username} | Interno {activeDriver?.internalUnit}</span>
+            <span className="text-[10px] text-slate-400 font-mono block">
+              @{activeDriver?.username} | Interno de hoja: {activeRoute?.internalUnit || 'Pendiente'}
+            </span>
             </div>
           </div>
         
@@ -355,7 +361,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
 
             {driverRoutes.length === 0 ? (
               <div className="bg-slate-850 rounded-2xl p-8 text-center text-slate-400 text-xs border border-slate-800">
-                No tienes hojas de ruta asignadas para hoy. ComunÃ­cate con el administrador.
+                No tienes hojas de ruta asignadas para hoy. Comunícate con el administrador.
               </div>
             ) : (
               <div className="space-y-3">
@@ -485,7 +491,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
                     <SignaturePad 
                       onSave={handleSaveLoadSignature}
                       onCancel={() => setShowLoadSignature(false)}
-                      placeholderText="Firme aquÃ­ para certificar la carga"
+                      placeholderText="Firme aquí para certificar la carga"
                     />
                   </div>
                 )}
@@ -509,7 +515,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
                           onClick={() => setSelectedStopId(null)}
                           className="text-[10px] text-slate-400 hover:text-white underline font-medium"
                         >
-                          AtrÃ¡s
+                          Atrás
                         </button>
                       </div>
 
@@ -615,7 +621,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
                           type="text"
                           value={stopObservations}
                           onChange={(e) => setStopObservations(e.target.value)}
-                          placeholder="e.g. Recibido sin novedad, bulto mojado, etc."
+                          placeholder="Ej. Recibido sin novedad, bulto mojado, etc."
                           className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-indigo-500"
                         />
                       </div>
@@ -720,8 +726,8 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
                                 stop.status === 'skipped' ? 'bg-rose-500/20 text-rose-400' :
                                 'bg-slate-800 text-slate-400 group-hover:bg-indigo-500 group-hover:text-white transition-colors'
                               }`}>
-                                {stop.status === 'completed' ? 'âœ“' :
-                                 stop.status === 'skipped' ? 'âœ•' :
+                                {stop.status === 'completed' ? '✓' :
+                                 stop.status === 'skipped' ? '✕' :
                                  idx + 1}
                               </div>
 
@@ -783,10 +789,10 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
                 <div className="bg-slate-850 rounded-2xl p-4 border border-indigo-950/40 space-y-3">
                   <div className="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase">
                     <CheckSquare className="w-4 h-4" />
-                    Paso Final: Cierre de Ruta en DepÃ³sito
+                    Paso Final: Cierre de Ruta en Depósito
                   </div>
                   <p className="text-xs text-slate-300">
-                    Registre su hora de regreso y el kilometraje final de la unidad para completar la rendiciÃ³n logicial.
+                    Registre su hora de regreso y el kilometraje final de la unidad para completar la rendición logística.
                   </p>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -800,7 +806,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-slate-400">Km Final (OdÃ³metro)</label>
+                      <label className="text-[10px] font-semibold text-slate-400">Km Final (Odómetro)</label>
                       <input
                         type="number"
                         value={finalKm}
@@ -820,7 +826,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
                   <SignaturePad 
                     onSave={handleSaveReturnSignature}
                     onCancel={() => setShowReturnSignature(false)}
-                    placeholderText="Firme aquÃ­ para validar el retorno"
+                    placeholderText="Firme aquí para validar el retorno"
                   />
                 </div>
               </div>

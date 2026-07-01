@@ -1,4 +1,4 @@
-import { Agency, Zone, Driver } from './types';
+import { Agency, Zone, Driver, InternalUnit } from './types';
 
 export const INITIAL_ZONES: Zone[] = [
   { id: 'zona-oeste', name: 'Zona Flores / Paternal', color: 'indigo' },
@@ -44,6 +44,13 @@ export const INITIAL_DRIVERS: Driver[] = [
     internalUnit: 'U-112',
     licensePlate: 'AD-556-PO'
   }
+];
+
+export const INITIAL_INTERNALS: InternalUnit[] = [
+  { id: 'int-1', code: 'U-108', licensePlate: 'AF-321-JK', status: 'operativo', description: 'Camión principal' },
+  { id: 'int-2', code: 'U-214', licensePlate: 'AE-892-LL', status: 'operativo', description: 'Camión secundario' },
+  { id: 'int-3', code: 'U-305', licensePlate: 'AG-404-ZX', status: 'operativo', description: 'Unidad liviana' },
+  { id: 'int-4', code: 'U-112', licensePlate: 'AD-556-PO', status: 'operativo', description: 'Backup operativo' }
 ];
 
 export const INITIAL_AGENCIES: Agency[] = [

@@ -4,6 +4,7 @@ import { loadAppState, saveAppState } from './persistence';
 const STORAGE_KEYS = {
   agencies: 'logistics_agencies',
   drivers: 'logistics_drivers',
+  internals: 'logistics_internals',
   routeSheets: 'logistics_routes',
   zones: 'logistics_zones',
 } as const;
@@ -21,6 +22,7 @@ const originalClear = typeof Storage !== 'undefined' ? Storage.prototype.clear :
 const hasAnyData = (state: AppData): boolean =>
   state.agencies.length > 0 ||
   state.drivers.length > 0 ||
+  state.internals.length > 0 ||
   state.routeSheets.length > 0 ||
   state.zones.length > 0;
 
@@ -33,6 +35,7 @@ const writeSnapshotToLocalStorage = (state: AppData): void => {
     if (originalRemoveItem) {
       originalRemoveItem.call(localStorage, STORAGE_KEYS.agencies);
       originalRemoveItem.call(localStorage, STORAGE_KEYS.drivers);
+      originalRemoveItem.call(localStorage, STORAGE_KEYS.internals);
       originalRemoveItem.call(localStorage, STORAGE_KEYS.routeSheets);
       originalRemoveItem.call(localStorage, STORAGE_KEYS.zones);
     }
@@ -41,6 +44,7 @@ const writeSnapshotToLocalStorage = (state: AppData): void => {
 
   originalSetItem.call(localStorage, STORAGE_KEYS.agencies, JSON.stringify(state.agencies));
   originalSetItem.call(localStorage, STORAGE_KEYS.drivers, JSON.stringify(state.drivers));
+  originalSetItem.call(localStorage, STORAGE_KEYS.internals, JSON.stringify(state.internals));
   originalSetItem.call(localStorage, STORAGE_KEYS.routeSheets, JSON.stringify(state.routeSheets));
   originalSetItem.call(localStorage, STORAGE_KEYS.zones, JSON.stringify(state.zones));
 };
@@ -63,6 +67,7 @@ const scheduleRemoteSave = (): void => {
 const snapshotFromLocalStorage = (): AppData => ({
   agencies: JSON.parse(localStorage.getItem(STORAGE_KEYS.agencies) || '[]'),
   drivers: JSON.parse(localStorage.getItem(STORAGE_KEYS.drivers) || '[]'),
+  internals: JSON.parse(localStorage.getItem(STORAGE_KEYS.internals) || '[]'),
   routeSheets: JSON.parse(localStorage.getItem(STORAGE_KEYS.routeSheets) || '[]'),
   zones: JSON.parse(localStorage.getItem(STORAGE_KEYS.zones) || '[]'),
 });
@@ -72,6 +77,8 @@ const updateSnapshotForKey = (key: string, value: string | null): void => {
     currentSnapshot.agencies = value ? JSON.parse(value) : [];
   } else if (key === STORAGE_KEYS.drivers) {
     currentSnapshot.drivers = value ? JSON.parse(value) : [];
+  } else if (key === STORAGE_KEYS.internals) {
+    currentSnapshot.internals = value ? JSON.parse(value) : [];
   } else if (key === STORAGE_KEYS.routeSheets) {
     currentSnapshot.routeSheets = value ? JSON.parse(value) : [];
   } else if (key === STORAGE_KEYS.zones) {
@@ -100,7 +107,7 @@ export const bootstrapStorageBridge = async (): Promise<void> => {
   Storage.prototype.setItem = function patchedSetItem(key: string, value: string) {
     originalSetItem.call(this, key, value);
     updateSnapshotForKey(key, value);
-    if (key === STORAGE_KEYS.agencies || key === STORAGE_KEYS.drivers || key === STORAGE_KEYS.routeSheets || key === STORAGE_KEYS.zones) {
+    if (key === STORAGE_KEYS.agencies || key === STORAGE_KEYS.drivers || key === STORAGE_KEYS.internals || key === STORAGE_KEYS.routeSheets || key === STORAGE_KEYS.zones) {
       scheduleRemoteSave();
     }
   };
@@ -108,7 +115,7 @@ export const bootstrapStorageBridge = async (): Promise<void> => {
   Storage.prototype.removeItem = function patchedRemoveItem(key: string) {
     originalRemoveItem.call(this, key);
     updateSnapshotForKey(key, null);
-    if (key === STORAGE_KEYS.agencies || key === STORAGE_KEYS.drivers || key === STORAGE_KEYS.routeSheets || key === STORAGE_KEYS.zones) {
+    if (key === STORAGE_KEYS.agencies || key === STORAGE_KEYS.drivers || key === STORAGE_KEYS.internals || key === STORAGE_KEYS.routeSheets || key === STORAGE_KEYS.zones) {
       scheduleRemoteSave();
     }
   };
@@ -118,6 +125,7 @@ export const bootstrapStorageBridge = async (): Promise<void> => {
     currentSnapshot = {
       agencies: [],
       drivers: [],
+      internals: [],
       routeSheets: [],
       zones: [],
     };

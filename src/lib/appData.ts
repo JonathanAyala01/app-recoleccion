@@ -1,9 +1,10 @@
-import { Agency, Driver, RouteSheet, Zone } from '../types';
-import { INITIAL_AGENCIES, INITIAL_DRIVERS, INITIAL_ZONES } from '../seedData';
+import { Agency, Driver, InternalUnit, RouteSheet, Zone } from '../types';
+import { INITIAL_AGENCIES, INITIAL_DRIVERS, INITIAL_INTERNALS, INITIAL_ZONES } from '../seedData';
 
 export interface AppData {
   agencies: Agency[];
   drivers: Driver[];
+  internals: InternalUnit[];
   routeSheets: RouteSheet[];
   zones: Zone[];
 }
@@ -14,6 +15,7 @@ const loadCreatedAt = new Date().toLocaleDateString('es-AR');
 export const createEmptyAppData = (): AppData => ({
   agencies: [],
   drivers: [],
+  internals: [],
   routeSheets: [],
   zones: [],
 });
@@ -75,6 +77,15 @@ const normalizeDriver = (driver: Partial<Driver>, existingUsernames: string[] = 
   legajo: driver.legajo || '',
   internalUnit: driver.internalUnit || '',
   licensePlate: driver.licensePlate || '',
+});
+
+const normalizeInternalUnit = (unit: Partial<InternalUnit>): InternalUnit => ({
+  id: unit.id || `int-${Date.now()}`,
+  code: unit.code || 'U-000',
+  licensePlate: unit.licensePlate || '',
+  status: unit.status === 'fuera_servicio' ? 'fuera_servicio' : 'operativo',
+  description: unit.description || '',
+  maintenanceNote: unit.maintenanceNote || '',
 });
 
 export const createSeedRouteSheets = (): RouteSheet[] => [
@@ -182,10 +193,12 @@ export const createSeedAppData = (): AppData => {
       INITIAL_DRIVERS.slice(0, index).map((item) => item.username)
     )
   );
+  const internals = INITIAL_INTERNALS.map((unit) => normalizeInternalUnit(unit));
 
   return {
     agencies: INITIAL_AGENCIES,
     drivers,
+    internals,
     routeSheets: createSeedRouteSheets(),
     zones: INITIAL_ZONES,
   };
@@ -202,6 +215,7 @@ export const normalizeDrivers = (drivers: Partial<Driver>[]): Driver[] =>
 export const hasAnyAppData = (data: AppData): boolean =>
   data.agencies.length > 0 ||
   data.drivers.length > 0 ||
+  data.internals.length > 0 ||
   data.routeSheets.length > 0 ||
   data.zones.length > 0;
 
@@ -210,10 +224,14 @@ export const normalizeAppData = (input: Partial<AppData> | null | undefined): Ap
   const zones = Array.isArray(input?.zones) ? input.zones : [];
   const routeSheets = Array.isArray(input?.routeSheets) ? input.routeSheets : [];
   const drivers = Array.isArray(input?.drivers) ? normalizeDrivers(input.drivers) : [];
+  const internals = Array.isArray(input?.internals) && input.internals.length > 0
+    ? input.internals.map((unit) => normalizeInternalUnit(unit))
+    : INITIAL_INTERNALS.map((unit) => normalizeInternalUnit(unit));
 
   return {
     agencies,
     drivers,
+    internals,
     routeSheets,
     zones,
   };

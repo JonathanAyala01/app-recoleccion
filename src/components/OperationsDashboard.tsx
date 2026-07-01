@@ -589,13 +589,13 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
 
         {chartMode === 'barras'
           ? renderBarPanel(
-            'Agencias con mas bultos dejados',
+            'Agencias con mas bultos entregados',
             'Ordenadas por bultos entregados efectivamente',
             <Truck className="h-4 w-4 text-emerald-500" />,
             agencyDeliveryBars,
           )
           : renderPiePanel(
-            'Agencias con mas bultos dejados',
+            'Agencias con mas bultos entregados',
             'Participacion de las agencias segun entregas reales',
             <Truck className="h-4 w-4 text-emerald-500" />,
             agencyDeliveryPie,
