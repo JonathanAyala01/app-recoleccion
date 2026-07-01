@@ -51,6 +51,11 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
 
   // Computed Values
   const activeDriver = drivers.find(d => d.id === selectedDriverId);
+
+  const showLoginError = (message: string) => {
+    setLoginError(message);
+    window.alert(message);
+  };
   
   // Filter sheets for this driver that are active or recently completed today
   const driverRoutes = routeSheets.filter(r => r.driverId === selectedDriverId);
@@ -82,12 +87,12 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
     const password = loginPassword.trim();
 
     if (!normalized) {
-      setLoginError('Ingrese su usuario.');
+      showLoginError('Ingrese su usuario.');
       return;
     }
 
     if (!password) {
-      setLoginError('Ingrese su contraseña.');
+      showLoginError('Ingrese su contraseña.');
       return;
     }
 
@@ -97,7 +102,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
     );
 
     if (!driver) {
-      setLoginError('Usuario no encontrado o contraseña incorrecta.');
+      showLoginError('Usuario no encontrado o contraseña incorrecta.');
       return;
     }
 
@@ -277,10 +282,14 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
               <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block px-1">Usuario</label>
               <input
                 type="text"
+                name="username"
                 value={loginUsername}
                 onChange={(e) => setLoginUsername(e.target.value)}
                 placeholder="carlos.gomez"
                 autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 className="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
               />
             </div>
@@ -289,16 +298,21 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
               <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block px-1">Contraseña</label>
               <input
                 type="password"
+                name="password"
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
                 placeholder="••••••••"
                 autoComplete="current-password"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 className="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
               />
             </div>
 
             <button
               type="submit"
+              onClick={() => handleLogin()}
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3 rounded-2xl transition-all shadow-md cursor-pointer"
             >
               Ingresar

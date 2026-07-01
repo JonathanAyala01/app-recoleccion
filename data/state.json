@@ -1,0 +1,40 @@
+{
+  "agencies": [],
+  "drivers": [],
+  "internals": [
+    {
+      "id": "int-1",
+      "code": "U-108",
+      "licensePlate": "AF-321-JK",
+      "status": "operativo",
+      "description": "Camión principal",
+      "maintenanceNote": ""
+    },
+    {
+      "id": "int-2",
+      "code": "U-214",
+      "licensePlate": "AE-892-LL",
+      "status": "operativo",
+      "description": "Camión secundario",
+      "maintenanceNote": ""
+    },
+    {
+      "id": "int-3",
+      "code": "U-305",
+      "licensePlate": "AG-404-ZX",
+      "status": "operativo",
+      "description": "Unidad liviana",
+      "maintenanceNote": ""
+    },
+    {
+      "id": "int-4",
+      "code": "U-112",
+      "licensePlate": "AD-556-PO",
+      "status": "operativo",
+      "description": "Backup operativo",
+      "maintenanceNote": ""
+    }
+  ],
+  "routeSheets": [],
+  "zones": []
+}
