@@ -10,4 +10,7 @@ return [
     'pass' => getenv('DB_PASS') ?: '',
     'charset' => getenv('DB_CHARSET') ?: 'utf8mb4',
     'table' => 'logistics_state',
+    // Cambiá estas claves por tus contraseñas reales.
+    'admin_password' => getenv('ADMIN_PASSWORD') ?: 'admin2026',
+    'viewer_password' => getenv('VIEWER_PASSWORD') ?: 'vista2026',
 ];

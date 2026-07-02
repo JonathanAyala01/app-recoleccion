@@ -12,13 +12,17 @@ interface DriverPanelProps {
   routeSheets: RouteSheet[];
   agencies: Agency[];
   onUpdateRouteSheet: (updatedRoute: RouteSheet) => void;
+  canInstallApp?: boolean;
+  onInstallApp?: () => void;
 }
 
 export const DriverPanel: React.FC<DriverPanelProps> = ({
   drivers,
   routeSheets,
   agencies,
-  onUpdateRouteSheet
+  onUpdateRouteSheet,
+  canInstallApp = false,
+  onInstallApp
 }) => {
   // Authentication / Selector State
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
@@ -346,6 +350,16 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
               Ingresar
             </button>
           </form>
+
+          {onInstallApp && (
+            <button
+              type="button"
+              onClick={onInstallApp}
+              className="mt-4 w-full rounded-2xl border border-indigo-400/30 bg-indigo-500/10 px-4 py-3 text-xs font-bold uppercase tracking-wider text-indigo-200 transition-colors hover:bg-indigo-500/20"
+            >
+              {canInstallApp ? 'Instalar app' : 'Agregar a inicio'}
+            </button>
+          )}
 
           <div className="mt-7 flex justify-center">
             <img

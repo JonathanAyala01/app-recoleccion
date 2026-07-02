@@ -1,0 +1,18 @@
+{
+  "name": "CRUCERO EXPRESS-RECOLECCIÓN",
+  "short_name": "Crucero Express",
+  "description": "App de chofer y administración para control de recolección y reparto.",
+  "start_url": "./?view=chofer",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "./app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -15,3 +15,12 @@ if (rootElement) {
     );
   });
 }
+
+if ('serviceWorker' in navigator && typeof window !== 'undefined') {
+  window.addEventListener('load', () => {
+    const swUrl = new URL('sw.js', window.location.href).toString();
+    navigator.serviceWorker.register(swUrl).catch(() => {
+      // Ignore registration errors; the app still works as a web app.
+    });
+  });
+}

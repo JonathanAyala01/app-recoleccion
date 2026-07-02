@@ -5,9 +5,11 @@ import { createSeedAppData, normalizeAppData } from './lib/appData';
 import { DashboardStats } from './components/DashboardStats';
 import { OperationsDashboard } from './components/OperationsDashboard';
 import { AdminPanel } from './components/AdminPanel';
+import { AdminAccessGate } from './components/AdminAccessGate';
+import { AdminReadOnlyPanel } from './components/AdminReadOnlyPanel';
 import { DriverPanel } from './components/DriverPanel';
 import { RouteDetailsModal } from './components/RouteDetailsModal';
-import { publicAssetPath } from './lib/paths';
+import { apiBasePath, publicAssetPath } from './lib/paths';
 
 const STORAGE_KEYS = {
   agencies: 'logistics_agencies',
@@ -21,6 +23,10 @@ const canUseLocalStorage = (): boolean =>
   typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 
 type PortalView = 'both' | 'admin' | 'chofer';
+type AdminRole = 'admin' | 'viewer';
+
+const ADMIN_ROLE_STORAGE_KEY = 'logistics_admin_role';
+const ADMIN_AUTH_ENDPOINT = `${apiBasePath().replace(/\/$/, '')}/auth.php`;
 
 const readPortalView = (): PortalView => {
   if (typeof window === 'undefined') return 'both';
@@ -44,6 +50,15 @@ const buildPortalLink = (view: Exclude<PortalView, 'both'>): string => {
   const url = new URL(window.location.href);
   url.searchParams.set('view', view);
   return url.toString();
+};
+
+const readStoredAdminRole = (): AdminRole | null => {
+  if (typeof window === 'undefined' || typeof window.sessionStorage === 'undefined') {
+    return null;
+  }
+
+  const stored = window.sessionStorage.getItem(ADMIN_ROLE_STORAGE_KEY);
+  return stored === 'admin' || stored === 'viewer' ? stored : null;
 };
 
 const parseCollection = <T,>(key: string): T[] => {
@@ -109,6 +124,10 @@ const writeStateToStorage = (state: {
 export default function App() {
   const [initialState] = useState(() => readStoredState());
   const portalView = readPortalView();
+  const [installPromptEvent, setInstallPromptEvent] = useState<Event | null>(null);
+  const [adminRole, setAdminRole] = useState<AdminRole | null>(() => readStoredAdminRole());
+  const [adminLoginError, setAdminLoginError] = useState('');
+  const [adminLoginLoading, setAdminLoginLoading] = useState(false);
 
   const [agencies, setAgencies] = useState<Agency[]>(initialState.agencies);
   const [drivers, setDrivers] = useState<Driver[]>(initialState.drivers);
@@ -116,6 +135,25 @@ export default function App() {
   const [routeSheets, setRouteSheets] = useState<RouteSheet[]>(initialState.routeSheets);
   const [zones, setZones] = useState<Zone[]>(initialState.zones);
   const [selectedRouteForModal, setSelectedRouteForModal] = useState<RouteSheet | null>(null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPromptEvent(event);
+    };
+
+    const handleAppInstalled = () => {
+      setInstallPromptEvent(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt as EventListener);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt as EventListener);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
 
   useEffect(() => {
     if (!hasStoredData()) {
@@ -298,6 +336,67 @@ export default function App() {
     }
   };
 
+  const handleInstallApp = async () => {
+    const promptEvent = installPromptEvent as BeforeInstallPromptEvent | null;
+    if (!promptEvent) {
+      alert('Usá el menú del navegador para agregar la app a inicio.');
+      return;
+    }
+
+    promptEvent.prompt();
+    await promptEvent.userChoice;
+    setInstallPromptEvent(null);
+  };
+
+  const handleAdminLogin = async (password: string) => {
+    const cleanPassword = password.trim();
+    if (!cleanPassword) {
+      setAdminLoginError('Ingresá una contraseña.');
+      return;
+    }
+
+    setAdminLoginError('');
+    setAdminLoginLoading(true);
+
+    try {
+      const response = await fetch(ADMIN_AUTH_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password: cleanPassword }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === 'string' ? payload.error : 'No se pudo validar el acceso.');
+      }
+
+      const role = payload?.role;
+      if (role !== 'admin' && role !== 'viewer') {
+        throw new Error('Respuesta inválida del servidor.');
+      }
+
+      setAdminRole(role);
+      if (typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined') {
+        window.sessionStorage.setItem(ADMIN_ROLE_STORAGE_KEY, role);
+      }
+    } catch (error) {
+      setAdminLoginError(error instanceof Error ? error.message : 'No se pudo validar el acceso.');
+    } finally {
+      setAdminLoginLoading(false);
+    }
+  };
+
+  const handleAdminLogout = () => {
+    setAdminRole(null);
+    setAdminLoginError('');
+    if (typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined') {
+      window.sessionStorage.removeItem(ADMIN_ROLE_STORAGE_KEY);
+    }
+  };
+
   const handleUpdateRouteSheet = (updatedRoute: RouteSheet) => {
     const previousRoute = routeSheets.find((route) => route.id === updatedRoute.id);
     const nextRoutes = routeSheets.map((route) => (route.id === updatedRoute.id ? updatedRoute : route));
@@ -332,9 +431,24 @@ export default function App() {
             routeSheets={routeSheets}
             agencies={agencies}
             onUpdateRouteSheet={handleUpdateRouteSheet}
+            canInstallApp={Boolean(installPromptEvent)}
+            onInstallApp={handleInstallApp}
           />
         </div>
       </div>
+    );
+  }
+
+  if (!adminRole) {
+    return (
+      <AdminAccessGate
+        isLoading={adminLoginLoading}
+        error={adminLoginError}
+        onSubmit={handleAdminLogin}
+        onGoToDriver={() => {
+          window.location.href = buildPortalLink('chofer');
+        }}
+      />
     );
   }
 
@@ -351,6 +465,9 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
+            <div className="hidden rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-200 md:inline-flex">
+              {adminRole === 'admin' ? 'Administrador' : 'Vista informativa'}
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <a
                 href={buildPortalLink('admin')}
@@ -372,6 +489,13 @@ export default function App() {
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Restablecer demo
+            </button>
+
+            <button
+              onClick={handleAdminLogout}
+              className="inline-flex items-center rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-rose-200 transition-colors hover:bg-rose-500/20"
+            >
+              Cerrar sesión
             </button>
           </div>
         </div>
@@ -401,27 +525,38 @@ export default function App() {
                 </h2>
               </div>
 
-              <AdminPanel
-                agencies={agencies}
-                zones={zones}
-                drivers={drivers}
-                internals={internals}
-                routeSheets={routeSheets}
-                onAddAgency={handleAddAgency}
-                onAddDriver={handleAddDriver}
-                onAddInternal={handleAddInternal}
-                onDeleteDriver={handleDeleteDriver}
-                onUpdateDriver={handleUpdateDriver}
-                onUpdateInternal={handleUpdateInternal}
-                onDeleteInternal={handleDeleteInternal}
-                onAddZone={handleAddZone}
-                onUpdateZone={handleUpdateZone}
-                onDeleteZone={handleDeleteZone}
-                onUpdateAgencyZone={handleUpdateAgencyZone}
-                onCreateRouteSheet={handleCreateRouteSheet}
-                onViewRouteDetails={(route) => setSelectedRouteForModal(route)}
-                onDeleteRouteSheet={handleDeleteRouteSheet}
-              />
+              {adminRole === 'admin' ? (
+                <AdminPanel
+                  agencies={agencies}
+                  zones={zones}
+                  drivers={drivers}
+                  internals={internals}
+                  routeSheets={routeSheets}
+                  onAddAgency={handleAddAgency}
+                  onAddDriver={handleAddDriver}
+                  onAddInternal={handleAddInternal}
+                  onDeleteDriver={handleDeleteDriver}
+                  onUpdateDriver={handleUpdateDriver}
+                  onUpdateInternal={handleUpdateInternal}
+                  onDeleteInternal={handleDeleteInternal}
+                  onAddZone={handleAddZone}
+                  onUpdateZone={handleUpdateZone}
+                  onDeleteZone={handleDeleteZone}
+                  onUpdateAgencyZone={handleUpdateAgencyZone}
+                  onCreateRouteSheet={handleCreateRouteSheet}
+                  onViewRouteDetails={(route) => setSelectedRouteForModal(route)}
+                  onDeleteRouteSheet={handleDeleteRouteSheet}
+                />
+              ) : (
+                <AdminReadOnlyPanel
+                  agencies={agencies}
+                  zones={zones}
+                  drivers={drivers}
+                  internals={internals}
+                  routeSheets={routeSheets}
+                  onViewRouteDetails={(route) => setSelectedRouteForModal(route)}
+                />
+              )}
             </div>
           </section>
         </div>
