@@ -297,6 +297,32 @@ export const RouteDetailsModal: React.FC<RouteDetailsModalProps> = ({
             </div>
           )}
 
+          {route.returnMechanicalCondition && (
+            <div className="bg-sky-50 border border-sky-200 rounded-xl p-4">
+              <h5 className="text-xs font-bold text-sky-800 uppercase tracking-wider mb-2">Condición de retorno:</h5>
+              <div className="flex flex-wrap gap-2 mb-2">
+                <span
+                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                    route.returnConditionStatus === 'ok'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : route.returnConditionStatus === 'observations'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-rose-100 text-rose-800'
+                  }`}
+                >
+                  {route.returnConditionStatus === 'ok'
+                    ? 'Llegó OK'
+                    : route.returnConditionStatus === 'observations'
+                      ? 'Llegó con observaciones'
+                      : 'Unidad con falla mecánica'}
+                </span>
+              </div>
+              {route.returnConditionNotes && (
+                <p className="text-sm text-sky-950">{route.returnConditionNotes}</p>
+              )}
+            </div>
+          )}
+
           {route.observations && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
               <h5 className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-1">Observaciones Generales de la Ruta:</h5>

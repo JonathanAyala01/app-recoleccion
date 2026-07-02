@@ -37,6 +37,8 @@ type ZoneStats = {
   agencies: number;
 };
 
+type ReturnConditionKey = 'ok' | 'observations' | 'mechanical_failure';
+
 type ChartMode = 'barras' | 'torta';
 
 type ChartItem = {
@@ -152,6 +154,11 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
   const driverStats = new Map<string, DriverStats>();
   const zoneStats = new Map<string, ZoneStats>();
   const zoneAgencySets = new Map<string, Set<string>>();
+  const returnConditionStats: Record<ReturnConditionKey, number> = {
+    ok: 0,
+    observations: 0,
+    mechanical_failure: 0,
+  };
 
   let totalStops = 0;
   let totalDeliveries = 0;
@@ -159,6 +166,11 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
   let completedStops = 0;
 
   filteredRoutes.forEach((route) => {
+    if (route.status === 'completed') {
+      const key: ReturnConditionKey = route.returnConditionStatus ?? 'ok';
+      returnConditionStats[key] += 1;
+    }
+
     route.stops.forEach((stop) => {
       totalStops += 1;
       const agency = agencyById.get(stop.agencyId);
@@ -436,6 +448,30 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
     value: item.deliveries + item.collections,
   }));
 
+  const returnConditionCards = [
+    {
+      title: 'Llegó OK',
+      value: returnConditionStats.ok,
+      description: 'Unidades que regresaron sin novedades',
+      accent: 'text-emerald-700',
+      icon: <Truck className="h-5 w-5 text-emerald-600" />,
+    },
+    {
+      title: 'Con observaciones',
+      value: returnConditionStats.observations,
+      description: 'Regresos con comentario de control',
+      accent: 'text-amber-700',
+      icon: <Calendar className="h-5 w-5 text-amber-600" />,
+    },
+    {
+      title: 'Falla mecánica',
+      value: returnConditionStats.mechanical_failure,
+      description: 'Unidades que requieren revisión',
+      accent: 'text-rose-700',
+      icon: <Filter className="h-5 w-5 text-rose-600" />,
+    },
+  ];
+
   return (
     <section className="space-y-4">
       <div className="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm md:p-6">
@@ -570,6 +606,19 @@ export const OperationsDashboard: React.FC<OperationsDashboardProps> = ({
           icon={<MapPin className="h-5 w-5 text-amber-600" />}
           accent="text-slate-950"
         />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {returnConditionCards.map((card) => (
+          <MetricCard
+            key={card.title}
+            title={card.title}
+            value={card.value}
+            description={card.description}
+            icon={card.icon}
+            accent={card.accent}
+          />
+        ))}
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

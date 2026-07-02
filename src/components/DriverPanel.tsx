@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { RouteSheet, Driver, Agency, RouteStop } from '../types';
 import { SignaturePad } from './SignaturePad';
+import { publicAssetPath } from '../lib/paths';
 
 interface DriverPanelProps {
   drivers: Driver[];
@@ -48,6 +49,8 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
   // Form states for return (unloading/closing)
   const [returnTime, setReturnTime] = useState('');
   const [finalKm, setFinalKm] = useState<number>(0);
+  const [returnConditionStatus, setReturnConditionStatus] = useState<'ok' | 'observations' | 'mechanical_failure' | ''>('');
+  const [returnConditionNotes, setReturnConditionNotes] = useState('');
 
   // Computed Values
   const activeDriver = drivers.find(d => d.id === selectedDriverId);
@@ -234,6 +237,8 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     setReturnTime(timeStr);
+    setReturnConditionStatus('');
+    setReturnConditionNotes('');
     
     // Default final Km to initial KM + something realistic
     if (activeRoute) {
@@ -252,11 +257,34 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
       return;
     }
 
+    if (!returnConditionStatus) {
+      alert('Seleccione la condición de retorno de la unidad.');
+      return;
+    }
+
+    if (returnConditionStatus !== 'ok' && !returnConditionNotes.trim()) {
+      alert('Agregue una observación o detalle mecánico para esta condición.');
+      return;
+    }
+
+    const returnConditionLabel =
+      returnConditionStatus === 'ok'
+        ? 'Llegó OK'
+        : returnConditionStatus === 'observations'
+          ? 'Llegó con observaciones'
+          : 'Unidad con falla mecánica';
+
     const updated: RouteSheet = {
       ...activeRoute,
       status: 'completed',
       returnTime: returnTime,
       finalKm: Number(finalKm),
+      returnConditionStatus,
+      returnConditionNotes: returnConditionNotes.trim(),
+      returnMechanicalCondition:
+        returnConditionStatus === 'ok'
+          ? returnConditionLabel
+          : `${returnConditionLabel}: ${returnConditionNotes.trim()}`,
       driverReturnSignature: signatureDataUrl
     };
 
@@ -270,7 +298,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
       <div className="min-h-[100dvh] w-full bg-slate-950 text-white flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-sm rounded-[2rem] border border-slate-800 bg-slate-900/95 shadow-2xl shadow-black/30 px-6 py-8">
           <div className="flex flex-col items-center text-center mb-8">
-            <img src="/logo.png" alt="Logo" className="h-20 w-20 object-contain mb-4 drop-shadow-[0_12px_20px_rgba(15,23,42,0.35)]" />
+            <img src={publicAssetPath('logo.png')} alt="Logo" className="h-20 w-20 object-contain mb-4 drop-shadow-[0_12px_20px_rgba(15,23,42,0.35)]" />
             <h2 className="text-2xl font-semibold tracking-tight text-white">Ingreso Chofer</h2>
             <p className="text-xs text-slate-400 mt-2 max-w-[240px]">
               Acceso privado con usuario y contraseña.
@@ -321,7 +349,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
 
           <div className="mt-7 flex justify-center">
             <img
-              src="/camioneta.png"
+              src={publicAssetPath('camioneta.png')}
               alt="Camioneta"
               className="w-full max-w-[280px] object-contain drop-shadow-[0_18px_24px_rgba(15,23,42,0.35)]"
             />
@@ -344,7 +372,7 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
       {/* Mini App Header */}
       <div className="bg-slate-850 border-b border-slate-800 px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="Logo" className="h-10 w-10 object-contain drop-shadow-[0_6px_12px_rgba(15,23,42,0.25)]" />
+            <img src={publicAssetPath('logo.png')} alt="Logo" className="h-10 w-10 object-contain drop-shadow-[0_6px_12px_rgba(15,23,42,0.25)]" />
             <div>
               <h3 className="text-xs font-bold truncate max-w-[120px]">{activeDriver?.name}</h3>
             <span className="text-[10px] text-slate-400 font-mono block">
@@ -410,6 +438,32 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
                         <div className="text-xs text-slate-400 mt-2">
                           Paradas: <strong className="text-slate-200">{route.stops.length} agencias</strong> en el recorrido.
                         </div>
+                        {isCompleted && route.returnConditionStatus && (
+                          <div className="mt-3 rounded-xl border border-slate-700 bg-slate-800/70 px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                                  route.returnConditionStatus === 'ok'
+                                    ? 'bg-emerald-500/15 text-emerald-300'
+                                    : route.returnConditionStatus === 'observations'
+                                      ? 'bg-amber-500/15 text-amber-300'
+                                      : 'bg-rose-500/15 text-rose-300'
+                                }`}
+                              >
+                                {route.returnConditionStatus === 'ok'
+                                  ? 'Llegó OK'
+                                  : route.returnConditionStatus === 'observations'
+                                    ? 'Llegó con observaciones'
+                                    : 'Falla mecánica'}
+                              </span>
+                            </div>
+                            {route.returnConditionNotes && (
+                              <p className="mt-1 text-[11px] text-slate-300 leading-relaxed">
+                                {route.returnConditionNotes}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {isCompleted ? (
@@ -829,6 +883,59 @@ export const DriverPanel: React.FC<DriverPanelProps> = ({
                       />
                     </div>
                   </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-semibold text-slate-400">Condición de retorno</label>
+                    <div className="grid grid-cols-1 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setReturnConditionStatus('ok')}
+                        className={`w-full rounded-lg border px-3 py-2 text-left text-xs font-semibold transition-colors ${
+                          returnConditionStatus === 'ok'
+                            ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
+                            : 'border-slate-700 bg-slate-800 text-slate-200 hover:border-slate-500'
+                        }`}
+                      >
+                        Llegó OK
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReturnConditionStatus('observations')}
+                        className={`w-full rounded-lg border px-3 py-2 text-left text-xs font-semibold transition-colors ${
+                          returnConditionStatus === 'observations'
+                            ? 'border-amber-500 bg-amber-500/10 text-amber-300'
+                            : 'border-slate-700 bg-slate-800 text-slate-200 hover:border-slate-500'
+                        }`}
+                      >
+                        Llegó con observaciones
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReturnConditionStatus('mechanical_failure')}
+                        className={`w-full rounded-lg border px-3 py-2 text-left text-xs font-semibold transition-colors ${
+                          returnConditionStatus === 'mechanical_failure'
+                            ? 'border-rose-500 bg-rose-500/10 text-rose-300'
+                            : 'border-slate-700 bg-slate-800 text-slate-200 hover:border-slate-500'
+                        }`}
+                      >
+                        Unidad con falla mecánica
+                      </button>
+                    </div>
+                  </div>
+                  {returnConditionStatus && returnConditionStatus !== 'ok' && (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-semibold text-slate-400">Detalle de la condición</label>
+                      <textarea
+                        value={returnConditionNotes}
+                        onChange={(e) => setReturnConditionNotes(e.target.value)}
+                        placeholder={
+                          returnConditionStatus === 'observations'
+                            ? 'Ej. llegó con rayón leve, sin daños mayores.'
+                            : 'Ej. falla en frenos, ruido en tren delantero, etc.'
+                        }
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs font-semibold text-slate-100 focus:outline-indigo-500 min-h-[84px]"
+                      />
+                    </div>
+                  )}
                   <div className="text-[10px] text-slate-400 font-mono bg-slate-900 p-2 rounded-lg">
                     Km Inicial del viaje: <strong className="text-white">{activeRoute?.initialKm} Km</strong>
                   </div>

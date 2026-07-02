@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
-import { Agency, Driver, InternalUnit, RouteSheet, Zone } from './types';
+import { Agency, Driver, InternalUnit, InternalUnitHistoryEntry, RouteSheet, Zone } from './types';
 import { createSeedAppData, normalizeAppData } from './lib/appData';
 import { DashboardStats } from './components/DashboardStats';
 import { OperationsDashboard } from './components/OperationsDashboard';
 import { AdminPanel } from './components/AdminPanel';
 import { DriverPanel } from './components/DriverPanel';
 import { RouteDetailsModal } from './components/RouteDetailsModal';
+import { publicAssetPath } from './lib/paths';
 
 const STORAGE_KEYS = {
   agencies: 'logistics_agencies',
@@ -143,6 +144,42 @@ export default function App() {
     }
   };
 
+  const appendInternalHistory = (route: RouteSheet) => {
+    const internalCode = route.internalUnit?.trim();
+    if (!internalCode) return;
+
+    const statusLabel: InternalUnitHistoryEntry['statusLabel'] =
+      route.returnConditionStatus === 'observations'
+        ? 'Llegó con observaciones'
+        : route.returnConditionStatus === 'mechanical_failure'
+          ? 'Unidad con falla mecánica'
+          : 'Llegó OK';
+
+    const historyEntry: InternalUnitHistoryEntry = {
+      id: `hist-${route.id}`,
+      routeId: route.id,
+      routeDate: route.date,
+      driverName: route.driverName,
+      legajo: route.legajo,
+      statusLabel,
+      notes: route.returnConditionNotes || route.returnMechanicalCondition || route.observations || '',
+      kmFinal: route.finalKm,
+      recordedAt: new Date().toLocaleString('es-AR'),
+    };
+
+    const nextInternals = internals.map((unit) => {
+      if (unit.code !== internalCode) return unit;
+      const currentHistory = Array.isArray(unit.history) ? unit.history : [];
+      const dedupedHistory = currentHistory.filter((entry) => entry.routeId !== route.id);
+      return {
+        ...unit,
+        history: [historyEntry, ...dedupedHistory].slice(0, 20),
+      };
+    });
+
+    persistInternals(nextInternals);
+  };
+
   const persistZones = (next: Zone[]) => {
     setZones(next);
     if (canUseLocalStorage()) {
@@ -262,7 +299,13 @@ export default function App() {
   };
 
   const handleUpdateRouteSheet = (updatedRoute: RouteSheet) => {
-    persistRouteSheets(routeSheets.map((route) => (route.id === updatedRoute.id ? updatedRoute : route)));
+    const previousRoute = routeSheets.find((route) => route.id === updatedRoute.id);
+    const nextRoutes = routeSheets.map((route) => (route.id === updatedRoute.id ? updatedRoute : route));
+    persistRouteSheets(nextRoutes);
+
+    if (previousRoute?.status !== 'completed' && updatedRoute.status === 'completed') {
+      appendInternalHistory(updatedRoute);
+    }
   };
 
   const resetToDefault = () => {
@@ -300,7 +343,7 @@ export default function App() {
       <header className="sticky top-0 z-40 bg-slate-950 text-white shadow-lg">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Logo" className="h-16 w-16 md:h-18 md:w-18 object-contain drop-shadow-[0_10px_18px_rgba(15,23,42,0.25)]" />
+            <img src={publicAssetPath('logo.png')} alt="Logo" className="h-16 w-16 md:h-18 md:w-18 object-contain drop-shadow-[0_10px_18px_rgba(15,23,42,0.25)]" />
             <div>
               <h1 className="text-sm font-bold tracking-tight md:text-base">CRUCERO EXPRESS-RECOLECCIÓN</h1>
               <p className="text-[10px] text-slate-400 font-mono">Control de reparto y firma digital</p>

@@ -1,4 +1,5 @@
 import { AppData, createEmptyAppData, normalizeAppData } from './appData';
+import { apiBasePath } from './paths';
 
 const STORAGE_KEYS = {
   agencies: 'logistics_agencies',
@@ -8,7 +9,7 @@ const STORAGE_KEYS = {
   zones: 'logistics_zones',
 } as const;
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || apiBasePath();
 const STATE_ENDPOINT = `${API_BASE_URL.replace(/\/$/, '')}/state.php`;
 
 const canUseLocalStorage = (): boolean => typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';

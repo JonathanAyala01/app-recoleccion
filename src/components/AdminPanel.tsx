@@ -717,6 +717,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <p className="mt-1 text-[10px] text-slate-500">
                       El interno se asigna al crear la hoja y no queda fijo en el chofer.
                     </p>
+                    {(() => {
+                      const selectedUnit = internals.find((unit) => unit.id === selectedInternalId);
+                      const lastHistory = selectedUnit?.history?.[0];
+
+                      if (!selectedUnit) return null;
+
+                      return (
+                        <div className="mt-2 rounded-lg border border-slate-200 bg-white p-2 text-[10px] text-slate-600">
+                          <div className="font-semibold text-slate-800">Último historial de {selectedUnit.code}</div>
+                          {lastHistory ? (
+                            <>
+                              <div className="mt-1">{lastHistory.routeDate} · {lastHistory.statusLabel}</div>
+                              {lastHistory.notes && <div className="text-slate-500">{lastHistory.notes}</div>}
+                            </>
+                          ) : (
+                            <div className="mt-1 text-slate-500">Sin movimientos registrados todavía.</div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -1041,6 +1061,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 {totalActualDelivered} entregados | {totalActualCollected} recolectados
                               </span>
                             </div>
+                            {route.status === 'completed' && route.returnConditionStatus && (
+                              <div className="flex items-center gap-2 pt-1">
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                                    route.returnConditionStatus === 'ok'
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : route.returnConditionStatus === 'observations'
+                                        ? 'bg-amber-100 text-amber-800'
+                                        : 'bg-rose-100 text-rose-800'
+                                  }`}
+                                >
+                                  {route.returnConditionStatus === 'ok'
+                                    ? 'Llegó OK'
+                                    : route.returnConditionStatus === 'observations'
+                                      ? 'Llegó con observaciones'
+                                      : 'Falla mecánica'}
+                                </span>
+                                {route.returnConditionNotes && (
+                                  <span className="text-[10px] text-slate-500 line-clamp-1">
+                                    {route.returnConditionNotes}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -1674,6 +1718,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     {unit.status === 'fuera_servicio' && unit.maintenanceNote && (
                       <div className="text-xs text-rose-600 mt-1">
                         Falta: {unit.maintenanceNote}
+                      </div>
+                    )}
+                    {unit.history && unit.history.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                          Historial reciente
+                        </div>
+                        {unit.history.slice(0, 3).map((entry) => (
+                          <div key={entry.id} className="rounded-lg border border-slate-100 bg-slate-50 p-2 text-[10px] text-slate-600">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-semibold text-slate-800">{entry.routeDate}</span>
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+                                  entry.statusLabel === 'Llegó OK'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : entry.statusLabel === 'Llegó con observaciones'
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : 'bg-rose-100 text-rose-800'
+                                }`}
+                              >
+                                {entry.statusLabel}
+                              </span>
+                            </div>
+                            <div className="mt-1">{entry.driverName} · {entry.legajo}</div>
+                            {entry.notes && <div className="mt-1 text-slate-500">{entry.notes}</div>}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>

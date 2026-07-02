@@ -86,6 +86,21 @@ const normalizeInternalUnit = (unit: Partial<InternalUnit>): InternalUnit => ({
   status: unit.status === 'fuera_servicio' ? 'fuera_servicio' : 'operativo',
   description: unit.description || '',
   maintenanceNote: unit.maintenanceNote || '',
+  history: Array.isArray(unit.history) ? unit.history.map((entry) => ({
+    id: entry.id || `hist-${Date.now()}`,
+    routeId: entry.routeId || '',
+    routeDate: entry.routeDate || '',
+    driverName: entry.driverName || 'Sin nombre',
+    legajo: entry.legajo || '',
+    statusLabel:
+      entry.statusLabel === 'Llegó con observaciones' ||
+      entry.statusLabel === 'Unidad con falla mecánica'
+        ? entry.statusLabel
+        : 'Llegó OK',
+    notes: entry.notes || '',
+    kmFinal: typeof entry.kmFinal === 'number' ? entry.kmFinal : undefined,
+    recordedAt: entry.recordedAt || new Date().toLocaleDateString('es-AR'),
+  })) : [],
 });
 
 export const createSeedRouteSheets = (): RouteSheet[] => [

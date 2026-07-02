@@ -23,6 +23,19 @@ export interface InternalUnit {
   status: 'operativo' | 'fuera_servicio';
   description?: string;
   maintenanceNote?: string;
+  history?: InternalUnitHistoryEntry[];
+}
+
+export interface InternalUnitHistoryEntry {
+  id: string;
+  routeId: string;
+  routeDate: string;
+  driverName: string;
+  legajo: string;
+  statusLabel: 'Llegó OK' | 'Llegó con observaciones' | 'Unidad con falla mecánica';
+  notes?: string;
+  kmFinal?: number;
+  recordedAt: string;
 }
 
 export interface Driver {
@@ -71,6 +84,9 @@ export interface RouteSheet {
   status: 'draft' | 'assigned' | 'loading' | 'en_route' | 'completed';
   driverLoadSignature?: string;
   driverReturnSignature?: string;
+  returnConditionStatus?: 'ok' | 'observations' | 'mechanical_failure';
+  returnConditionNotes?: string;
+  returnMechanicalCondition?: string;
   observations?: string;
   createdAt: string;
 }
